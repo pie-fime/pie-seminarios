@@ -46,6 +46,7 @@ window.App = (() => {
     els.loginView.classList.add('hidden');els.appView.classList.remove('hidden');els.userName.textContent=session.name;
     if(session.role==='admin'){await loadAdmin();buildAdminNav();renderAdmin('dashboard');}
     else{await loadEvaluator();buildEvaluatorNav();renderEvaluator('dashboard');}
+    document.getElementById('profileButton').onclick=openProfile;
   }
   async function loadAdmin(){data=await Admin.load();}
   async function loadEvaluator(){data=await Evaluator.load();}
@@ -55,6 +56,29 @@ window.App = (() => {
   }
   function buildEvaluatorNav(){
     els.nav.innerHTML='<button class="nav-button active" data-view="dashboard">Mis estudiantes</button>';
+  }
+  function openProfile(){
+    const evaluator=session.role==='evaluator'?(data.evaluator||{}):{};
+    openModal('Mi perfil',`<form id="profileForm" class="form-grid">
+      <label>Nombre completo<input name="name" value="${escapeHtml(session.name||evaluator.name||'')}" required></label>
+      <label>Usuario<input name="username" value="${escapeHtml(session.username||evaluator.username||'')}" required></label>
+      ${session.role==='evaluator'?`<label>Correo<input type="email" name="email" value="${escapeHtml(session.email||evaluator.email||'')}" required></label>`:''}
+      <label class="full">Contraseña actual<input type="password" name="currentPassword" autocomplete="current-password" required></label>
+      <label>Nueva contraseña <span class="muted">(opcional)</span><input type="password" name="newPassword" minlength="12" autocomplete="new-password"></label>
+      <label>Confirmar nueva contraseña<input type="password" name="confirmation" minlength="12" autocomplete="new-password"></label>
+      <div class="full"><button class="button primary" type="submit">Guardar cambios</button></div>
+    </form>`);
+    const form=document.getElementById('profileForm');
+    form.onsubmit=async event=>{
+      event.preventDefault();const button=form.querySelector('[type=submit]');button.disabled=true;
+      try{
+        const fields=new FormData(form),newPassword=String(fields.get('newPassword'));
+        if(newPassword!==String(fields.get('confirmation')))throw new Error('Las nuevas contraseñas no coinciden');
+        const result=await Auth.updateProfile({name:String(fields.get('name')).trim(),username:String(fields.get('username')).trim(),email:String(fields.get('email')||'').trim(),currentPassword:String(fields.get('currentPassword')),newPassword});
+        session={...session,...result};els.userName.textContent=session.name;closeModal();toast('Perfil actualizado.');
+        if(session.role==='evaluator'){await loadEvaluator();renderEvaluator('dashboard');}
+      }catch(error){button.disabled=false;toast(error.message);}
+    };
   }
   async function renderAdmin(view){
     currentView=view;els.nav.querySelectorAll('.nav-button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));

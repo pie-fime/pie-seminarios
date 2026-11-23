@@ -31,6 +31,8 @@ Si la página está configurada para usar el servidor, las credenciales del demo
 
 En **Resumen** puedes consultar el periodo activo, el número de estudiantes y evaluadores, y el avance de las evaluaciones. El sistema espera tres evaluaciones por estudiante.
 
+En **Mi perfil**, el administrador puede actualizar su nombre, usuario y contraseña. El cambio de contraseña requiere la contraseña actual y la confirmación de la nueva.
+
 ### 3.2. Crear y activar un periodo
 
 1. Entra en **Periodos** y pulsa **Nuevo periodo**.
@@ -54,7 +56,7 @@ El programa es obligatorio y debe ser **MCIE** o **DIE**. Puedes modificar un re
 2. Completa nombre, correo, usuario y contraseña temporal.
 3. Pulsa **Guardar evaluador** y entrega las credenciales por un medio seguro.
 
-La contraseña no puede cambiarse desde la interfaz. Usa el buscador y el filtro de estado para localizar evaluadores.
+Desde **Mi perfil**, cada evaluador puede actualizar su nombre, correo, usuario y contraseña. Para cambiar la contraseña debe proporcionar la contraseña actual y confirmar la nueva.
 
 ### 3.5. Importar directorios con CSV
 

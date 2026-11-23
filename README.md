@@ -127,6 +127,7 @@ node --check js/app.js
 Escenarios manuales mínimos:
 
 - Inicio de sesión de administrador y evaluador.
+- Actualización del perfil propio y cambio de contraseña con verificación de la contraseña actual.
 - Registro e importación CSV de estudiantes.
 - Importación CSV guiada para estudiantes/evaluadores, validación de filas y selección/exportación CSV.
 - Filtros por director, cohorte y estado; ordenamiento al pulsar encabezados.

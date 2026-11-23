@@ -134,7 +134,16 @@ window.App = (() => {
         };
       };
     }
-    if(view==='assignments'){els.content.innerHTML=Admin.assignments(API.isDemo()?Admin.forPeriod(data,data.period?.id):data);wireAssignmentActions();}
+    if(view==='assignments'){
+      els.content.innerHTML='<section class="panel"><p>Cargando asignaciones...</p></section>';
+      try{await loadAdmin();}catch(error){
+        if(currentView===view){els.content.innerHTML='<section class="panel"><p>No se pudieron cargar las asignaciones.</p></section>';toast(error.message);}
+        return;
+      }
+      if(currentView!==view)return;
+      els.period.textContent=data.period?.name||'Sin periodo activo';
+      els.content.innerHTML=Admin.assignments(API.isDemo()?Admin.forPeriod(data,data.period?.id):data);wireAssignmentActions();
+    }
     if(view==='periods'){
       directoryData=await Admin.loadManagement();
       els.content.innerHTML=Admin.periods(directoryData);
@@ -385,24 +394,40 @@ window.App = (() => {
   function wireAssignmentActions(){
     document.querySelectorAll('[data-edit-assignment]').forEach(b=>b.onclick=()=>{
       const student=data.students.find(s=>s.id===b.dataset.editAssignment);
-      const currentAssignments=API.isDemo()?Admin.forPeriod(data,data.period?.id).assignments:data.assignments;
-      const ids=currentAssignments.filter(a=>a.student===student.id).map(a=>a.evaluator);
-      const options=data.evaluators.map(e=>`<label class="assignment-option"><input type="checkbox" name="evaluator" value="${e.id}" ${ids.includes(e.id)?'checked':''}><span>${e.name}</span></label>`).join('');
-      openModal(`Asignar evaluadores · ${student.name}`,`<form id="assignmentForm">${options}<p class="muted">Debe seleccionar exactamente tres profesores diferentes.</p><button class="button primary" type="submit">Guardar asignación</button></form>`);
-      document.getElementById('assignmentForm').onsubmit=async e=>{
-        e.preventDefault();const selected=[...e.target.querySelectorAll(':checked')].map(i=>i.value);
-        if(selected.length!==3)return toast('Debe seleccionar exactamente tres evaluadores');
+      const currentData=API.isDemo()?Admin.forPeriod(data,data.period?.id):data;
+      const currentAssignments=currentData.assignments;
+      const ids=currentAssignments.filter(a=>a.student===student.id&&a.state==='Activa').map(a=>a.evaluator);
+      const evaluated=currentData.evaluations.filter(e=>e.student===student.id&&(e.round||1)===2).map(e=>e.evaluator);
+      openModal(`Asignar evaluadores · ${student.name}`,`<form id="assignmentForm"><div id="assignmentOptions"></div><p class="muted">Selecciona hasta tres evaluadores. Los que ya enviaron su evaluación no pueden retirarse.</p><button class="button primary" type="submit">Guardar asignación</button></form>`);
+      const form=document.getElementById('assignmentForm'),options=document.getElementById('assignmentOptions');
+      data.evaluators.filter(e=>e.state==='Activo'||ids.includes(e.id)).forEach(e=>{
+        const label=document.createElement('label'),input=document.createElement('input'),name=document.createElement('span');
+        label.className='assignment-option';input.type='checkbox';input.name='evaluator';input.value=e.id;
+        input.checked=ids.includes(e.id);input.disabled=evaluated.includes(e.id);
+        name.textContent=`${e.name}${e.state==='Activo'?'':' (inactivo)'}${input.disabled?' · evaluación enviada':''}`;
+        label.append(input,name);options.appendChild(label);
+        input.onchange=()=>{if(form.querySelectorAll('input:checked').length>3){input.checked=false;toast('Puedes asignar hasta tres evaluadores');}};
+      });
+      if(!options.children.length)options.textContent='No hay evaluadores activos disponibles.';
+      form.onsubmit=async e=>{
+        e.preventDefault();const selected=[...form.querySelectorAll('input:checked')].map(i=>i.value);
+        if(selected.length>3)return toast('Puedes asignar hasta tres evaluadores');
+        const button=form.querySelector('[type=submit]');button.disabled=true;
         try{
           if(!API.isDemo())await API.call('saveAssignment',{studentId:student.id,evaluatorIds:selected},session.token);
           else{
-            const active=Admin.forPeriod(data,data.period?.id);
-            if(active.evaluations.some(e=>e.student===student.id&&(e.round||1)===2))throw new Error('No se pueden cambiar las asignaciones después de recibir una evaluación en esta ronda');
-            data.assignments=data.assignments.filter(a=>a.student!==student.id||!active.assignments.includes(a));
-            selected.forEach((evaluator,index)=>data.assignments.push({id:`AS-${student.id}-${index+1}`,period:data.period.id,student:student.id,evaluator,state:'Activa'}));
-            Admin.saveDemo(data);
+            const current=await Admin.load(),active=Admin.forPeriod(current,current.period?.id);
+            if(current.period?.id!==data.period?.id||!active.students.some(s=>s.id===student.id))throw new Error('El estudiante o el periodo activo ya no está disponible');
+            const assigned=active.assignments.filter(a=>a.student===student.id&&a.state==='Activa');
+            const completed=active.evaluations.filter(e=>e.student===student.id&&(e.round||1)===2).map(e=>e.evaluator);
+            if(completed.some(id=>!selected.includes(id)))throw new Error('No se puede retirar a un evaluador que ya envió su evaluación');
+            if(selected.some(id=>!current.evaluators.some(ev=>ev.id===id&&(ev.state==='Activo'||(assigned.some(a=>a.evaluator===id)&&completed.includes(id))))))throw new Error('Alguno de los evaluadores ya no está disponible');
+            current.assignments.forEach(a=>{if(assigned.includes(a)&&!selected.includes(a.evaluator))a.state='Inactiva';});
+            selected.filter(id=>!assigned.some(a=>a.evaluator===id)).forEach(evaluator=>current.assignments.push({id:Admin.nextDemoId(current.assignments,'AS'),period:current.period.id,student:student.id,evaluator,state:'Activa'}));
+            Admin.saveDemo(current);
           }
-          closeModal();toast('Asignación guardada');await loadAdmin();renderAdmin('assignments');
-        }catch(error){toast(error.message);}
+        }catch(error){button.disabled=false;toast(error.message);return;}
+        closeModal();toast('Asignación guardada');await renderAdmin('assignments');
       };
     });
   }

@@ -143,9 +143,8 @@ window.Reports = (() => {
   function reviewersFor(data,studentId) {
     const assignments=data.assignments.filter(a=>a.student===studentId&&a.state==='Activa');
     const assignedIds=[...new Set(assignments.map(a=>a.evaluator))];
-    const ids=assignments.length===3&&assignedIds.length===3?assignedIds:[];
     const fallback=data.evaluations.filter(e=>e.student===studentId).map(e=>e.evaluator);
-    const selected=[...new Set(ids.length===3?ids:fallback)].slice(0,3);
+    const selected=[...new Set([...assignedIds,...fallback])].slice(0,3);
     while(selected.length<3)selected.push('');
     return selected.map((id,index)=>{
       const evaluator=data.evaluators.find(e=>e.id===id);

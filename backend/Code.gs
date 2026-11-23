@@ -605,13 +605,21 @@ function importEvaluators(evaluators){
   return {imported:evaluators.length};
 }
 function saveAssignment(studentId,evaluatorIds){
-  if(!Array.isArray(evaluatorIds)||evaluatorIds.length!==3||new Set(evaluatorIds).size!==3)throw new Error('Debe haber exactamente tres evaluadores diferentes');
+  if(!Array.isArray(evaluatorIds)||evaluatorIds.length>3||evaluatorIds.some(id=>typeof id!=='string'||!id.trim())||new Set(evaluatorIds).size!==evaluatorIds.length)throw new Error('Selecciona hasta tres evaluadores diferentes');
   const d=dashboard();
-  if(!d.students.some(s=>s.id===studentId)||evaluatorIds.some(id=>!d.evaluators.some(e=>e.id===id&&e.state==='Activo')))throw new Error('El estudiante o alguno de los evaluadores ya no está disponible');
-  if(d.evaluations.some(e=>e.student===studentId))throw new Error('No se pueden cambiar las asignaciones después de recibir una evaluación en esta ronda');
+  if(!d.period.id||!d.students.some(s=>s.id===studentId))throw new Error('El estudiante o el periodo activo ya no está disponible');
+  const assigned=d.assignments.filter(a=>a.student===studentId&&a.state==='Activa');
+  const completed=d.evaluations.filter(e=>e.student===studentId).map(e=>e.evaluator);
+  if(completed.some(id=>!evaluatorIds.includes(id)))throw new Error('No se puede retirar a un evaluador que ya envió su evaluación');
+  if(evaluatorIds.some(id=>!d.evaluators.some(e=>e.id===id&&(e.state==='Activo'||(assigned.some(a=>a.evaluator===id)&&completed.includes(id))))))throw new Error('Alguno de los evaluadores ya no está disponible');
   const old=sh('Asignaciones');const values=old.getDataRange().getValues();const head=values.shift();
-  for(let i=0;i<values.length;i++){if(values[i][head.indexOf('ID_Periodo')]===d.period.id&&values[i][head.indexOf('ID_Estudiante')]===studentId&&values[i][head.indexOf('Estado')]==='Activa')old.getRange(i+2,6).setValue('Inactiva');}
-  evaluatorIds.forEach(function(ev){const id=nextId('AS','Asignaciones','ID_Asignacion');old.appendRow([id,d.period.id,studentId,ev,new Date(),'Activa']);});
+  const stateIndex=head.indexOf('Estado');
+  if(['ID_Asignacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Fecha_Asignacion','Estado'].some(h=>head.filter(v=>v===h).length!==1))throw new Error('La hoja Asignaciones no tiene las columnas necesarias');
+  for(let i=0;i<values.length;i++){if(values[i][head.indexOf('ID_Periodo')]===d.period.id&&values[i][head.indexOf('ID_Estudiante')]===studentId&&values[i][stateIndex]==='Activa'&&!evaluatorIds.includes(values[i][head.indexOf('ID_Evaluador')]))old.getRange(i+2,stateIndex+1).setValue('Inactiva');}
+  evaluatorIds.filter(ev=>!assigned.some(a=>a.evaluator===ev)).forEach(function(ev){
+    const record={ID_Asignacion:nextId('AS','Asignaciones','ID_Asignacion'),ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev,Fecha_Asignacion:new Date(),Estado:'Activa'};
+    old.appendRow(head.map(h=>record[h]===undefined?'':record[h]));
+  });
   return {ok:true};
 }
 function submitEvaluation(session,body){

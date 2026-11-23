@@ -80,9 +80,9 @@ Las contraseñas no se incluyen en la exportación de evaluadores. El borrado se
 
 1. Verifica que esté activo el periodo correspondiente y que existan el estudiante y los evaluadores.
 2. Entra en **Asignaciones** y pulsa **Asignar** en la fila del estudiante.
-3. Marca **exactamente tres evaluadores diferentes** y pulsa **Guardar asignación**.
+3. Marca hasta **tres evaluadores diferentes** y pulsa **Guardar asignación**. Puedes completar la asignación más adelante o desmarcar todos para quitarla.
 
-Revisa las asignaciones antes de iniciar la captura: no se pueden cambiar después de recibir una evaluación de ese estudiante en la ronda actual.
+Los evaluadores que ya enviaron su evaluación no pueden retirarse. Para obtener el promedio final se requieren tres evaluaciones. La lista muestra únicamente estudiantes del periodo activo; si está vacía, revisa su cohorte y el periodo activo.
 
 ### 3.8. Crear otro administrador
 

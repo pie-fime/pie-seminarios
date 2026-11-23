@@ -84,10 +84,12 @@ En celulares, abre el menú con ☰. Se cierra al elegir una opción, al tocar f
 
 1. Crear o importar estudiantes con el CSV: `Matricula,Nombre,Programa,Semestre,Titulo de tesis,Director de tesis`. El programa es obligatorio y debe ser `MCIE` o `DIE`.
 2. Crear evaluadores y asignarles contraseñas temporales.
-3. Asignar exactamente tres evaluadores diferentes a cada estudiante.
+3. Asignar hasta tres evaluadores diferentes a cada estudiante del periodo activo; pueden agregarse gradualmente. No se puede retirar a quien ya envió su evaluación.
 4. Cada evaluador selecciona con el deslizador una calificación entera de 0 a 100 para cada criterio, puede abrir sus descriptores con **Ver rúbrica** y escribir observaciones generales para la evaluación. Debe seleccionar explícitamente todos los puntajes antes de enviar.
 5. El sistema calcula `suma(ponderación × calificación)` y conserva dos decimales. El tiempo de presentación es un criterio independiente: 10 minutos o menos es sobresaliente; más de 10 y menos de 11, satisfactorio; de 11 a 15, en desarrollo; y más de 15, insuficiente. Se califica con el deslizador, sin registrar tiempos ni aplicar penalización.
 6. El promedio final aparece únicamente después de enviar tres evaluaciones.
+
+Para habilitar las asignaciones parciales en una instalación existente, actualiza el frontend y `backend/Code.gs`, y publica una nueva versión de Apps Script.
 
 En **Administradores > Nuevo administrador**, un administrador puede crear otra cuenta con los mismos permisos. Indica nombre, usuario y una contraseña de al menos 12 caracteres. Todavía no existe cambio de contraseña en la aplicación. En el demo estas cuentas solo funcionan en el navegador donde se crearon.
 
@@ -129,6 +131,7 @@ Escenarios manuales mínimos:
 
 - Abrir `tests/profile.html` en un navegador para comprobar las pruebas de perfil con datos simulados.
 - Abrir `tests/csv-import.html` en un navegador para probar la importación de estudiantes con matrículas numéricas y de texto.
+- Abrir `tests/assignments.html` en un navegador para probar asignaciones parciales y protección de evaluaciones enviadas.
 - Inicio de sesión de administrador y evaluador.
 - Actualización del perfil propio y cambio de contraseña con verificación de la contraseña actual.
 - Registro e importación CSV de estudiantes.

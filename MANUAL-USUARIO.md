@@ -115,9 +115,11 @@ La calificación individual combina los puntajes según las ponderaciones de la 
 
 En la rúbrica predeterminada, el tiempo de presentación es un criterio que se califica con el deslizador: hasta 10 minutos corresponde al nivel sobresaliente; más de 10 y menos de 11, satisfactorio; de 11 a 15, en desarrollo; y más de 15, insuficiente. No se captura el tiempo ni se aplica una penalización automática en esa rúbrica.
 
-### 4.3. Consultar una evaluación enviada
+### 4.3. Editar o consultar una evaluación enviada
 
-En **Mis estudiantes**, pulsa **Consultar** junto a un estudiante con estado **Completada**. La evaluación se muestra en modo de lectura; actualmente no puede modificarse desde la interfaz. Si detectas un error, contacta al administrador.
+En **Mis estudiantes**, pulsa **Editar** junto al estudiante para corregir tu evaluación y guardar los cambios. Puedes hacerlo únicamente durante el día calendario en que la enviaste, hasta la medianoche de Monterrey, aunque guardes cambios varias veces.
+
+Al día siguiente aparece **Consultar** y la evaluación queda en modo de lectura. Las evaluaciones sin una fecha de envío válida también quedan solo para consulta. Si detectas un error después del plazo, contacta al administrador.
 
 ## 5. Problemas frecuentes
 

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Pruebas de edición de evaluaciones</title></head>
+<body>
+<pre id="result">Ejecutando pruebas...</pre>
+<iframe id="app" title="Aplicación de prueba" hidden></iframe>
+<script src="../backend/Code.gs"></script>
+<script>
+  const frame=document.getElementById('app');
+  frame.srcdoc=`<!doctype html><html><body>
+    <div id="loginView"><form id="loginForm"><input id="username"><input id="password"><button>Entrar</button></form><div id="loginError"></div></div>
+    <div id="appView" class="hidden"><aside id="sidebar"><button id="closeMenuButton"></button><nav id="mainNav"></nav><span id="userName"></span><button id="profileButton"></button><button id="logoutButton"></button></aside>
+    <button id="menuBackdrop"></button><button id="menuButton"></button><span id="activePeriodLabel"></span><h1 id="pageTitle"></h1><span id="connectionBadge"></span><div id="content"></div></div>
+    <div id="modal" class="hidden"><h2 id="modalTitle"></h2><button id="modalClose"></button><div id="modalBody"></div></div><div id="toastRegion"></div>
+    <script>
+      const store=new Map();
+      Object.defineProperty(window,'localStorage',{value:{getItem:key=>store.get(key)??null,setItem:(key,value)=>store.set(key,String(value)),removeItem:key=>store.delete(key)}});
+    <\/script>
+    <script src="../js/calculations.js"><\/script><script src="../js/api.js"><\/script>
+    <script>window.API.isDemo=()=>true;<\/script>
+    <script src="../js/auth.js"><\/script><script src="../js/csv.js"><\/script><script src="../js/rubric-default.js"><\/script>
+    <script src="../js/admin.js"><\/script><script src="../js/evaluator.js"><\/script><script src="../js/reports.js"><\/script><script src="../js/app.js"><\/script>
+  </body></html>`;
+  function waitFor(predicate){
+    return new Promise((resolve,reject)=>{
+      const start=Date.now();
+      const timer=setInterval(()=>{
+        if(predicate()){clearInterval(timer);resolve();}
+        else if(Date.now()-start>5000){clearInterval(timer);reject(new Error('Tiempo agotado esperando la aplicación'));}
+      },20);
+    });
+  }
+  frame.onload=async()=>{
+    try{
+      const assert=(condition,message)=>{if(!condition)throw new Error(message);};
+      const w=frame.contentWindow,doc=frame.contentDocument;
+      const beforeMidnight=new Date('2026-11-24T05:59:59Z'),afterMidnight=new Date('2026-11-24T06:00:00Z');
+      assert(w.Evaluator.canEdit({submittedAt:'2026-11-23T06:01:00Z'},beforeMidnight),'Debe permitir editar hasta la medianoche de Monterrey');
+      assert(!w.Evaluator.canEdit({submittedAt:'2026-11-23T06:01:00Z'},afterMidnight),'Debe cerrar la edición al cambiar de día');
+      assert(!w.Evaluator.canEdit({submittedAt:'fecha inválida'},afterMidnight),'Una fecha inválida no debe permitir edición');
+
+      const data=await w.Admin.load(),rubric=w.Evaluator.getRubric(),submittedAt=new Date().toISOString();
+      const criteria=Object.fromEntries(rubric.map(c=>[c.id,80]));
+      data.evaluations.push({student:'EST-001',evaluator:'EV-001',period:data.period.id,round:2,submittedAt,individual:80,criteria,rawCriteria:criteria,observations:'Antes',rubric});
+      w.Admin.saveDemo(data);
+      doc.getElementById('username').value='evaluador';doc.getElementById('password').value='evaluador123';
+      doc.getElementById('loginForm').requestSubmit();
+      await waitFor(()=>doc.querySelector('[data-evaluate="EST-001"]'));
+      assert(doc.querySelector('[data-evaluate="EST-001"]').textContent==='Editar','Falta la opción de editar');
+      doc.querySelector('[data-evaluate="EST-001"]').click();
+      const form=doc.getElementById('evaluationForm');
+      assert(!form.querySelector('[data-score-slider]').disabled,'Las calificaciones deben poder editarse');
+      form.elements.observations.value='Después';
+      form.requestSubmit();
+      await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
+      let saved=await w.Admin.load();
+      assert(saved.evaluations.length===1&&saved.evaluations[0].observations==='Después'&&saved.evaluations[0].submittedAt===submittedAt,'La edición debe actualizar la misma evaluación sin cambiar su fecha');
+      saved.evaluations[0].submittedAt='2020-01-01T12:00:00Z';w.Admin.saveDemo(saved);
+      doc.querySelector('[data-evaluate="EST-001"]').click();
+      const staleForm=doc.getElementById('evaluationForm');
+      staleForm.elements.observations.value='Cambio tardío';
+      staleForm.requestSubmit();
+      await waitFor(()=>doc.getElementById('toastRegion').textContent.includes('Solo puedes editar'));
+      saved=await w.Admin.load();
+      assert(saved.evaluations[0].observations==='Después','Una edición vencida no debe guardarse');
+      const oldDashboard=new DOMParser().parseFromString(w.Evaluator.dashboard({
+        students:saved.students,evaluator:saved.evaluators[0],evaluations:saved.evaluations,completed:['EST-001'],period:saved.period
+      }),'text/html');
+      assert(oldDashboard.querySelector('[data-evaluate="EST-001"]').textContent==='Consultar','Una evaluación anterior solo debe poder consultarse');
+      doc.getElementById('modalClose').click();
+      doc.querySelector('[data-evaluate="EST-002"]').click();
+      const newForm=doc.getElementById('evaluationForm');
+      newForm.querySelectorAll('[data-score-slider]').forEach(slider=>slider.dispatchEvent(new w.Event('input',{bubbles:true})));
+      newForm.requestSubmit();
+      await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
+      saved=await w.Admin.load();
+      assert(saved.evaluations.length===2&&w.Evaluator.canEdit(saved.evaluations.find(e=>e.student==='EST-002')),'Una evaluación nueva debe guardarse con fecha y quedar editable');
+
+      window.Utilities={formatDate:(date,zone)=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date)};
+      assert(evaluationEditable('2026-11-23T06:01:00Z',beforeMidnight),'El servidor debe permitir el mismo día');
+      assert(!evaluationEditable('2026-11-23T06:01:00Z',afterMidnight),'El servidor debe rechazar el día siguiente');
+      assert(!evaluationEditable(null,afterMidnight),'El servidor debe rechazar fechas faltantes');
+      const serverRubric=[{id:'C1',name:'Criterio',weight:1,hasTimePenalty:false}];
+      const headers=['ID_Evaluacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Calificacion_Individual','Observaciones_Generales','Fecha_Envio','Estado','Ronda','Rubrica_JSON','Calificaciones_JSON','Calificaciones_Originales_JSON','Tiempo_JSON','Observaciones_Criterios_JSON','Extra'];
+      const timestamp=new Date();
+      const rows=[headers,['EVL-001','P1','S1','E1',80,'Antes',timestamp,'Enviada',2,JSON.stringify(serverRubric),'{"C1":80}','{"C1":80}','{}','{"C1":"conservar"}','dato adicional']];
+      const current=()=>mapEvaluation(Object.fromEntries(headers.map((h,i)=>[h,rows[1][i]])));
+      window.dashboard=()=>({period:{id:'P1'},evaluators:[{id:'E1',username:'evaluador'},{id:'E2',username:'otro'}],assignments:[{student:'S1',evaluator:'E1',state:'Activa'}],evaluations:[current()]});
+      window.sh=()=>({getDataRange:()=>({getValues:()=>rows.map(row=>row.slice())}),getRange:(row,column,height,width)=>({getFormulas:()=>[headers.map((h,i)=>i===14?'=1+1':'')],setValues:values=>{rows[row-1]=values[0];}}),appendRow:row=>rows.push(row)});
+      const body={studentId:'S1',rubric:serverRubric,rawCriteria:{C1:90},time:{},observations:'Actualizada'};
+      submitEvaluation({username:'evaluador'},body,true);
+      assert(rows.length===2&&rows[1][4]===90&&rows[1][5]==='Actualizada'&&rows[1][6]===timestamp&&rows[1][13]==='{"C1":"conservar"}'&&rows[1][14]==='=1+1','El servidor debe conservar fecha, observaciones y fórmulas no editadas');
+      const rejects=(session,editing,message)=>{
+        let failed=false;try{submitEvaluation(session,body,editing);}catch(error){failed=error.message.includes(message);}
+        assert(failed,'Se esperaba el error: '+message);
+      };
+      rejects({username:'evaluador'},false,'Ya existe');
+      rejects({username:'otro'},true,'no está disponible');
+      rows[1][6]=new Date('2020-01-01T12:00:00Z');
+      rejects({username:'evaluador'},true,'Solo puedes editar');
+      rows[1][6]='';
+      rejects({username:'evaluador'},true,'Solo puedes editar');
+      document.getElementById('result').textContent='Todas las pruebas de edición de evaluaciones pasaron.';
+    }catch(error){document.getElementById('result').textContent='Error: '+error.message;console.error(error);}
+  };
+</script>
+</body>
+</html>

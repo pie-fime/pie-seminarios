@@ -89,6 +89,8 @@ En celulares, abre el menú con ☰. Se cierra al elegir una opción, al tocar f
 5. El sistema calcula `suma(ponderación × calificación)` y conserva dos decimales. El tiempo de presentación es un criterio independiente: 10 minutos o menos es sobresaliente; más de 10 y menos de 11, satisfactorio; de 11 a 15, en desarrollo; y más de 15, insuficiente. Se califica con el deslizador, sin registrar tiempos ni aplicar penalización.
 6. El promedio final aparece únicamente después de enviar tres evaluaciones.
 
+Los evaluadores pueden editar sus propias evaluaciones hasta terminar el día calendario de envío, en la zona horaria de Monterrey. Las evaluaciones anteriores o sin fecha de envío válida quedan solo para consulta. Para habilitar esta función en una instalación existente, actualiza el frontend y `backend/Code.gs` y publica una nueva versión de Apps Script.
+
 Para habilitar las asignaciones parciales en una instalación existente, actualiza el frontend y `backend/Code.gs`, y publica una nueva versión de Apps Script.
 
 En **Administradores > Nuevo administrador**, un administrador puede crear otra cuenta con los mismos permisos. Indica nombre, usuario y una contraseña de al menos 12 caracteres. Todavía no existe cambio de contraseña en la aplicación. En el demo estas cuentas solo funcionan en el navegador donde se crearon.
@@ -133,6 +135,7 @@ Escenarios manuales mínimos:
 - Abrir `tests/csv-import.html` en un navegador para probar la importación de estudiantes con matrículas numéricas y de texto.
 - Abrir `tests/assignments.html` en un navegador para probar asignaciones parciales y protección de evaluaciones enviadas.
 - Abrir `tests/reports.html` en un navegador para comprobar los nombres en los comentarios del reporte.
+- Abrir `tests/evaluation-edit.html` en un navegador para comprobar la edición de evaluaciones y su límite diario.
 - Inicio de sesión de administrador y evaluador.
 - Actualización del perfil propio y cambio de contraseña con verificación de la contraseña actual.
 - Registro e importación CSV de estudiantes.

@@ -1,5 +1,5 @@
 window.App = (() => {
-  let session=null,data=null,reportData=null,directoryData=null,currentView='dashboard';
+  let session=null,data=null,reportData=null,directoryData=null,currentView='dashboard',evaluatorTimer=null;
   const studentTableState={search:'',director:'',period:'',sort:'matricula',direction:'asc',selected:new Set()};
   const evaluatorTableState={search:'',status:'',sort:'name',direction:'asc',selected:new Set()};
   const els={loginView:document.getElementById('loginView'),appView:document.getElementById('appView'),loginForm:document.getElementById('loginForm'),loginError:document.getElementById('loginError'),content:document.getElementById('content'),nav:document.getElementById('mainNav'),title:document.getElementById('pageTitle'),period:document.getElementById('activePeriodLabel'),userName:document.getElementById('userName'),badge:document.getElementById('connectionBadge'),modal:document.getElementById('modal'),modalTitle:document.getElementById('modalTitle'),modalBody:document.getElementById('modalBody')};
@@ -43,6 +43,7 @@ window.App = (() => {
   }
   async function logout(){
     await Auth.logout();
+    clearInterval(evaluatorTimer);evaluatorTimer=null;
     session=null;closeModal();setMenuOpen(false);
     els.modalBody.replaceChildren();els.content.replaceChildren();els.nav.replaceChildren();
     els.loginForm.reset();els.loginError.classList.add('hidden');
@@ -660,21 +661,29 @@ window.App = (() => {
     });
   }
   async function renderEvaluator(){
+    clearInterval(evaluatorTimer);
     els.period.textContent=data.period?.name||'Sin periodo activo';els.title.textContent='Mis estudiantes';
     els.content.innerHTML=Evaluator.dashboard(data);
+    evaluatorTimer=setInterval(()=>{
+      els.content.querySelectorAll('[data-evaluate][data-done="true"]').forEach(button=>{
+        const evaluation=data.evaluations.find(e=>e.student===button.dataset.evaluate&&e.evaluator===data.evaluator.id);
+        button.textContent=Evaluator.canEdit(evaluation)?'Editar':'Consultar';
+      });
+    },1000);
     els.content.querySelectorAll('[data-evaluate]').forEach(b=>b.onclick=()=>{
       const student=data.students.find(s=>s.id===b.dataset.evaluate);
       const existing=data.evaluations.find(e=>e.student===student.id&&e.evaluator===data.evaluator.id);
       const prior=data.evaluations.find(e=>e.student===student.id);
       const rubric=existing?.rubric||prior?.rubric||data.rubric;
-      openModal(existing?'Consulta de evaluación':'Formulario de evaluación',Evaluator.rubricForm(student,rubric,existing));
-      wireEvaluation(existing,student.id,rubric);
+      const editable=existing&&Evaluator.canEdit(existing);
+      openModal(existing?(editable?'Editar evaluación':'Consulta de evaluación'):'Formulario de evaluación',Evaluator.rubricForm(student,rubric,existing,editable));
+      wireEvaluation(existing,student.id,rubric,editable);
     });
   }
-  function wireEvaluation(existing, studentId,rubric){
+  function wireEvaluation(existing, studentId,rubric,editable){
     const form=document.getElementById('evaluationForm');
-    if(existing)return;
-    form.querySelectorAll('[data-score-slider]').forEach(slider=>slider.setCustomValidity('Selecciona un puntaje para este criterio.'));
+    if(existing&&!editable)return;
+    if(!existing)form.querySelectorAll('[data-score-slider]').forEach(slider=>slider.setCustomValidity('Selecciona un puntaje para este criterio.'));
     const read=()=>{
       const fd=new FormData(form),rawCriteria={};
       rubric.forEach(c=>{const slider=form.elements.namedItem(c.id);rawCriteria[c.id]=slider.validity.valid?fd.get(c.id):'';});
@@ -720,20 +729,24 @@ window.App = (() => {
       const button=form.querySelector('[type=submit]');button.disabled=true;
       try{const values=read();Calculations.individual(values.rawCriteria,rubric);let score=Calculations.individual(values.criteria,rubric);
         if(!API.isDemo()){
-          const result=await API.call('submitEvaluation',{studentId,...values,rubric},session.token);
+          const result=await API.call(existing?'updateEvaluation':'submitEvaluation',{studentId,...values,rubric},session.token);
           score=result.individual;
         }
         else{
           const current=await Admin.load();
           if(current.period?.id!==data.period?.id)throw new Error('El periodo activo cambió; abre de nuevo el formulario');
           const evaluations=Admin.forPeriod(current,current.period?.id).evaluations;
-          if(evaluations.some(e=>(e.round||1)===2&&e.student===studentId&&e.evaluator===data.evaluator.id))throw new Error('Ya existe una evaluación enviada');
+          const saved=evaluations.find(e=>(e.round||1)===2&&e.student===studentId&&e.evaluator===data.evaluator.id);
+          if(existing&&!saved)throw new Error('La evaluación ya no está disponible');
+          if(!existing&&saved)throw new Error('Ya existe una evaluación enviada');
+          if(saved&&!Evaluator.canEdit(saved))throw new Error('Solo puedes editar la evaluación el día en que la enviaste');
           const prior=evaluations.find(e=>(e.round||1)===2&&e.student===studentId);
           if(prior&&JSON.stringify(prior.rubric)!==JSON.stringify(rubric))throw new Error('La rúbrica cambió; abre de nuevo el formulario');
-          current.evaluations.push({period:current.period.id,student:studentId,evaluator:data.evaluator.id,round:2,individual:score,...values,rubric});
+          if(saved)Object.assign(saved,{individual:score,...values});
+          else current.evaluations.push({period:current.period.id,student:studentId,evaluator:data.evaluator.id,round:2,individual:score,...values,rubric,submittedAt:new Date().toISOString()});
           Admin.saveDemo(current);
         }
-        closeModal();toast(`Evaluación enviada: ${score.toFixed(2)} puntos`);
+        closeModal();toast(`Evaluación ${existing?'actualizada':'enviada'}: ${score.toFixed(2)} puntos`);
         await loadEvaluator();renderEvaluator();
       }catch(error){button.disabled=false;toast(error.message);}
     };

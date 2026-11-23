@@ -260,6 +260,7 @@ function doPost(e) {
     if (body.action==='importEvaluators' && session.role==='admin') return json({ok:true,data:withDirectoryLock(()=>importEvaluators(body.evaluators))});
     if (body.action==='saveAssignment' && session.role==='admin') return json({ok:true,data:withDirectoryLock(()=>saveAssignment(body.studentId,body.evaluatorIds))});
     if (body.action==='submitEvaluation' && session.role==='evaluator') return json({ok:true,data:withDirectoryLock(()=>submitEvaluation(session,body))});
+    if (body.action==='updateEvaluation' && session.role==='evaluator') return json({ok:true,data:withDirectoryLock(()=>submitEvaluation(session,body,true))});
     return json({ok:false,error:'Acción no autorizada'});
   } catch (err) { return json({ok:false,error:String(err.message||err)}); }
 }
@@ -423,6 +424,7 @@ function mapStudent(s){
 function mapEvaluation(e){
   const savedRubric=e.Rubrica_JSON?JSON.parse(e.Rubrica_JSON):null;
   return {id:e.ID_Evaluacion,student:e.ID_Estudiante,evaluator:e.ID_Evaluador,round:Number(e.Ronda||1),
+    submittedAt:e.Fecha_Envio instanceof Date&&!isNaN(e.Fecha_Envio.getTime())?e.Fecha_Envio.toISOString():null,
     individual:Number(e.Calificacion_Individual),observations:e.Observaciones_Generales,
     criteria:JSON.parse(e.Calificaciones_JSON),
     rawCriteria:e.Calificaciones_Originales_JSON?JSON.parse(e.Calificaciones_Originales_JSON):null,
@@ -622,19 +624,26 @@ function saveAssignment(studentId,evaluatorIds){
   });
   return {ok:true};
 }
-function submitEvaluation(session,body){
+function evaluationEditable(submittedAt,now=new Date()){
+  const submitted=submittedAt?new Date(submittedAt):null;
+  return !!submitted&&!isNaN(submitted.getTime())&&submitted<=now&&
+    Utilities.formatDate(submitted,'America/Monterrey','yyyy-MM-dd')===Utilities.formatDate(now,'America/Monterrey','yyyy-MM-dd');
+}
+function submitEvaluation(session,body,editing=false){
   const studentId=body.studentId;
   if(!body.rawCriteria||!body.rubric)throw new Error('No se recibieron calificaciones o rúbrica');
   const d=dashboard();const ev=d.evaluators.find(e=>e.username===session.username);
   if(!ev)throw new Error('Evaluador no válido');
   const duplicate=d.evaluations.find(e=>e.student===studentId&&e.evaluator===ev.id);
-  if(duplicate)throw new Error('Ya existe una evaluación enviada');
+  if(editing&&!duplicate)throw new Error('La evaluación ya no está disponible');
+  if(!editing&&duplicate)throw new Error('Ya existe una evaluación enviada');
+  if(editing&&!evaluationEditable(duplicate.submittedAt))throw new Error('Solo puedes editar la evaluación el día en que la enviaste');
   const assigned=d.assignments.find(a=>a.student===studentId&&a.evaluator===ev.id&&a.state==='Activa');
   if(!assigned)throw new Error('El estudiante no está asignado a este evaluador');
   const prior=d.evaluations.find(e=>e.student===studentId);
   const rubric=prior?prior.rubric:getRubric();
   if(!rubric||JSON.stringify(rubric)!==JSON.stringify(body.rubric))throw new Error('La rúbrica cambió; abre de nuevo el formulario');
-  const raw={},criteria={},time=body.time||{},observations=body.criterionObservations||{};
+  const raw={},criteria={},time=body.time||{},observations=body.criterionObservations||duplicate?.criterionObservations||{};
   let penalty=0;
   if(rubric.some(c=>c.hasTimePenalty)&&(time.minutes!==''||time.seconds!=='')){
     const assigned=Number(time.assigned),minutes=Number(time.minutes),seconds=time.seconds===''?0:Number(time.seconds);
@@ -650,11 +659,22 @@ function submitEvaluation(session,body){
     weighted+=criteria[c.id]*c.weight;
   });
   const individual=Math.round(weighted*100)/100;
-  const id=nextId('EVL','Evaluaciones','ID_Evaluacion');
-  const sheet=sh('Evaluaciones'),headers=sheet.getDataRange().getValues()[0];
+  const sheet=sh('Evaluaciones'),sheetValues=sheet.getDataRange().getValues(),headers=sheetValues[0];
   if(NEW_EVALUATION_HEADERS.some(h=>!headers.includes(h)))throw new Error('Falta migrar la hoja Evaluaciones');
+  const id=editing?duplicate.id:nextId('EVL','Evaluaciones','ID_Evaluacion');
   const record={ID_Evaluacion:id,ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev.id,Calificacion_Individual:individual,Observaciones_Generales:body.observations||'',Fecha_Envio:new Date(),Estado:'Enviada',Ronda:2,Rubrica_JSON:JSON.stringify(rubric),Calificaciones_JSON:JSON.stringify(criteria),Calificaciones_Originales_JSON:JSON.stringify(raw),Tiempo_JSON:JSON.stringify(time),Observaciones_Criterios_JSON:JSON.stringify(observations)};
-  sheet.appendRow(headers.map(h=>record[h]===undefined?'':record[h]));return {id:id,individual:individual};
+  if(Object.keys(record).some(h=>headers.filter(value=>value===h).length!==1))throw new Error('La hoja Evaluaciones no tiene las columnas necesarias');
+  if(editing){
+    if(!evaluationEditable(duplicate.submittedAt))throw new Error('Solo puedes editar la evaluación el día en que la enviaste');
+    const idIndex=headers.indexOf('ID_Evaluacion');
+    const matching=sheetValues.map((row,index)=>row[idIndex]===id?index:-1).filter(index=>index>0);
+    if(idIndex<0||matching.length!==1)throw new Error('No se encontró una única evaluación para actualizar');
+    const row=sheetValues[matching[0]],range=sheet.getRange(matching[0]+1,1,1,headers.length);
+    const formulas=range.getFormulas()[0];
+    delete record.Fecha_Envio;
+    range.setValues([headers.map((h,i)=>record[h]===undefined?(formulas[i]||row[i]):record[h])]);
+  }else sheet.appendRow(headers.map(h=>record[h]===undefined?'':record[h]));
+  return {id:id,individual:individual};
 }
 function restablecerClaveAdmin() {
   const clave = PropertiesService.getScriptProperties()

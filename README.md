@@ -109,7 +109,7 @@ Para borrar, marca los periodos deseados o usa la casilla del encabezado para se
 
 ## Reportes
 
-En **Reportes**, selecciona por alumno, generación/cohorte o revisor y pulsa **Visualizar reporte**. Después de visualizarlo, al final aparecerán los controles para descargarlo como CSV o imprimirlo; en el diálogo de impresión se puede seleccionar **Guardar como PDF**. Los reportes de alumno muestran la matriz por criterio (R1, R2 y R3) y concentran solo las observaciones generales de los revisores; los reportes de generación y revisor no presentan promedio final cuando faltan evaluaciones.
+En **Reportes**, selecciona por alumno, periodo de evaluación o revisor y pulsa **Visualizar reporte**. Los reportes por periodo y por revisor permiten filtrar por semestre y programa, que también aparecen como columnas en pantalla y en el CSV. Después de visualizarlo, al final aparecerán los controles para descargarlo como CSV o imprimirlo; en el diálogo de impresión se puede seleccionar **Guardar como PDF**. Los reportes de alumno muestran la matriz por criterio (R1, R2 y R3), la calificación final y las observaciones generales. La calificación final queda pendiente hasta contar con las tres evaluaciones.
 
 Al cargar el demo actualizado se eliminan sus evaluaciones anteriores de escala 1–4; los registros de estudiantes, evaluadores y asignaciones se conservan.
 

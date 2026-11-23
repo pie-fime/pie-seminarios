@@ -613,13 +613,17 @@ window.App = (() => {
     const type=document.getElementById('reportType');
     const studentFilter=document.getElementById('reportStudentFilter');
     const evaluatorFilter=document.getElementById('reportEvaluatorFilter');
+    const semesterFilter=document.getElementById('reportSemesterFilter');
+    const programFilter=document.getElementById('reportProgramFilter');
     const updateFilters=()=>{
       studentFilter.classList.toggle('hidden',type.value!=='student');
       evaluatorFilter.classList.toggle('hidden',type.value!=='evaluator');
+      semesterFilter.classList.toggle('hidden',type.value==='student');
+      programFilter.classList.toggle('hidden',type.value==='student');
     };
     type.addEventListener('change',updateFilters);
     updateFilters();
-    ['reportType','reportStudent','reportEvaluator'].forEach(id=>{
+    ['reportType','reportStudent','reportEvaluator','reportSemester','reportProgram'].forEach(id=>{
       document.getElementById(id).addEventListener('change',()=>{document.getElementById('reportPreview').innerHTML='';});
     });
     document.getElementById('reportPeriod').addEventListener('change',async event=>{
@@ -636,7 +640,9 @@ window.App = (() => {
         const selectedType=type.value;
         const result=Reports.createReport(reportData,selectedType,{
           studentId:document.getElementById('reportStudent').value,
-          evaluatorId:document.getElementById('reportEvaluator').value
+          evaluatorId:document.getElementById('reportEvaluator').value,
+          semester:document.getElementById('reportSemester').value,
+          program:document.getElementById('reportProgram').value
         });
         const preview=document.getElementById('reportPreview');
         preview.innerHTML=`${result.html}<div class="report-actions"><button class="button secondary" id="downloadReport">Descargar CSV</button><button class="button primary" id="printReport">Imprimir / Guardar PDF</button></div>`;

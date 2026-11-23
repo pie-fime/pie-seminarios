@@ -87,6 +87,7 @@ th { color:var(--gray-600);font-size:.75rem;text-transform:uppercase;letter-spac
 .report-meta dt { color:var(--gray-600);font-size:.75rem;font-weight:800;text-transform:uppercase; }
 .report-meta dd { margin:3px 0 0;font-weight:700;overflow-wrap:anywhere; }
 .report-table { min-width:640px; }
+.report-final { margin:14px 0; }
 .report-comments-section { margin-top:20px; }
 .report-comments-section h3 { font-size:1rem; }
 .report-comments { min-height:130px;border:1px solid var(--gray-300);border-radius:8px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere; }
@@ -161,4 +162,6 @@ th { color:var(--gray-600);font-size:.75rem;text-transform:uppercase;letter-spac
   .report-table th,.report-table td { padding:6px; }
   .report-heading,.report-meta,.report-comments-section,.report-signatures { break-inside:avoid; }
   .report-comments { min-height:90px; }
+  /* Padding survives a page break where the top margin can be discarded. */
+  .report-signatures { margin-top:0;padding-top:55px; }
 }

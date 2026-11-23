@@ -12,8 +12,8 @@
       students:[{id:'S1',matricula:'100',name:'Estudiante',period:'P1'}],
       evaluators:[{id:'E1',name:'Marta Ejemplo'},{id:'E2',name:'Dr. Luis Ejemplo'},{id:'E3',name:'Dra. Ana Ejemplo'}],
       assignments:['E1','E2','E3'].map(evaluator=>({student:'S1',evaluator,state:'Activa'})),
-      evaluations:['E1','E2','E3'].map(evaluator=>({student:'S1',evaluator,individual:90,observations:'Comentario'})),
-      rubric:[]
+      evaluations:['E1','E2','E3'].map((evaluator,index)=>({student:'S1',evaluator,individual:[91.25,98.35,0][index],criteria:{C1:50},observations:'Comentario'})),
+      rubric:[{id:'C1',name:'Criterio de prueba'}]
     };
     const report=Reports.createReport(data,'student',{studentId:'S1'});
     const doc=new DOMParser().parseFromString(report.html,'text/html');
@@ -26,6 +26,70 @@
       throw new Error('El reporte añadió o conservó Dr. en los comentarios');
     if(!doc.querySelector('thead').textContent.includes('Dr. Luis Ejemplo'))
       throw new Error('Se modificó el nombre en la tabla de criterios');
+    if(doc.querySelector('tfoot'))throw new Error('El reporte no debe incluir una fila de promedios por revisor');
+    const final=doc.querySelector('.report-final');
+    if(!final.textContent.includes('63.20 / 100')||!(doc.querySelector('.table-wrap').compareDocumentPosition(final)&Node.DOCUMENT_POSITION_FOLLOWING))
+      throw new Error('La calificación final no aparece debajo de la tabla');
+    const criterionIndex=report.csvRows.findIndex(row=>row[0]==='Criterio de prueba');
+    if(report.csvRows[criterionIndex+1][0]!=='Calificación final'||report.csvRows[criterionIndex+1][1]!=='63.20')
+      throw new Error('El CSV no muestra la calificación final después de los criterios');
+    const partial=Reports.createReport({...data,evaluations:data.evaluations.slice(0,2)},'student',{studentId:'S1'});
+    const partialDoc=new DOMParser().parseFromString(partial.html,'text/html');
+    if(!partialDoc.querySelector('.report-final').textContent.includes('Pendiente'))
+      throw new Error('El reporte incompleto debe mostrar las calificaciones pendientes');
+    const invalid=Reports.createReport({...data,evaluations:data.evaluations.map((evaluation,index)=>index===2?{...evaluation,individual:''}:evaluation)},'student',{studentId:'S1'});
+    const invalidDoc=new DOMParser().parseFromString(invalid.html,'text/html');
+    if(!invalidDoc.querySelector('.report-final').textContent.includes('Pendiente'))
+      throw new Error('Una calificación vacía no debe calcularse como cero');
+    window.Admin={formatDate:value=>value||'—'};
+    const directory={
+      ...data,
+      students:[
+        {...data.students[0],semester:2,program:'MCIE'},
+        {id:'S2',matricula:'200',name:'Otro estudiante',semester:'2',program:'DIE',period:'P1'},
+        {id:'S3',matricula:'300',name:'Tercer estudiante',semester:3,program:'MCIE',period:'P1'}
+      ],
+      assignments:[...data.assignments,{student:'S2',evaluator:'E1',state:'Activa'}],
+      evaluations:[...data.evaluations,{student:'S2',evaluator:'E1',individual:0}]
+    };
+    const workspace=new DOMParser().parseFromString(Reports.workspace(directory),'text/html');
+    if(!workspace.querySelector('#reportSemester option[value="2"]')||!workspace.querySelector('#reportProgram option[value="DIE"]'))
+      throw new Error('Faltan opciones de semestre o programa');
+    const periodReport=Reports.createReport(directory,'generation',{semester:'2',program:'MCIE'});
+    const periodDoc=new DOMParser().parseFromString(periodReport.html,'text/html');
+    const periodHeaders=[...periodDoc.querySelectorAll('thead th')].map(cell=>cell.textContent);
+    const periodCells=[...periodDoc.querySelectorAll('tbody tr:first-child td')].map(cell=>cell.textContent);
+    if(periodDoc.querySelector('h2').textContent!=='Reportes por periodo de evaluación'||
+       periodHeaders.join('|')!=='Matrícula|Nombre del alumno|Semestre|Programa|Calificación final (0–100)'||
+       periodDoc.querySelectorAll('tbody tr').length!==1||periodCells.join('|')!=='100|Estudiante|2|MCIE|63.20')
+      throw new Error('El reporte por periodo tiene columnas, filtros o valores incorrectos');
+    const periodHeaderIndex=periodReport.csvRows.findIndex(row=>row[0]==='Matrícula'&&row.length===5);
+    if(periodReport.csvRows[periodHeaderIndex].join('|')!=='Matrícula|Nombre del alumno|Semestre|Programa|Calificación final (0-100)'||
+       periodReport.csvRows[periodHeaderIndex+1].join('|')!=='100|Estudiante|2|MCIE|63.20'||
+       periodReport.csvRows.length!==periodHeaderIndex+2)
+      throw new Error('El CSV por periodo no coincide con los filtros y columnas');
+    const allPeriods=new DOMParser().parseFromString(Reports.createReport(directory,'generation').html,'text/html');
+    const semesterOnly=new DOMParser().parseFromString(Reports.createReport(directory,'generation',{semester:'2'}).html,'text/html');
+    if(allPeriods.querySelectorAll('tbody tr').length!==3||semesterOnly.querySelectorAll('tbody tr').length!==2)
+      throw new Error('El filtro de semestre o la selección de todos es incorrecta');
+    const reviewerReport=Reports.createReport(directory,'evaluator',{evaluatorId:'E1',semester:'2',program:'DIE'});
+    const reviewerDoc=new DOMParser().parseFromString(reviewerReport.html,'text/html');
+    const reviewerHeaders=[...reviewerDoc.querySelectorAll('thead th')].map(cell=>cell.textContent);
+    const reviewerCells=[...reviewerDoc.querySelectorAll('tbody tr:first-child td')].map(cell=>cell.textContent);
+    if(reviewerHeaders.join('|')!=='Periodo|Matrícula|Nombre del alumno|Semestre|Programa|Calificación del revisor (0–100)'||
+       reviewerDoc.querySelectorAll('tbody tr').length!==1||reviewerCells.join('|')!=='Periodo|200|Otro estudiante|2|DIE|0.00')
+      throw new Error('El reporte por revisor tiene columnas, filtros o valores incorrectos');
+    const reviewerHeaderIndex=reviewerReport.csvRows.findIndex(row=>row[0]==='Periodo'&&row.length===6);
+    if(reviewerReport.csvRows[reviewerHeaderIndex].join('|')!=='Periodo|Matrícula|Nombre del alumno|Semestre|Programa|Calificación del revisor (0-100)'||
+       reviewerReport.csvRows[reviewerHeaderIndex+1].join('|')!=='Periodo|200|Otro estudiante|2|DIE|0.00'||
+       reviewerReport.csvRows.length!==reviewerHeaderIndex+2)
+      throw new Error('El CSV por revisor no coincide con los filtros y columnas');
+    const empty=Reports.createReport(directory,'evaluator',{evaluatorId:'E1',semester:'3',program:'MCIE'});
+    const emptyDoc=new DOMParser().parseFromString(empty.html,'text/html');
+    if(emptyDoc.querySelector('tbody td').colSpan!==6||!emptyDoc.querySelector('tbody').textContent.includes('No hay alumnos'))
+      throw new Error('El reporte no indica cuando los filtros no tienen resultados');
+    const assignedCount=[...emptyDoc.querySelectorAll('dt')].find(item=>item.textContent==='Alumnos asignados');
+    if(assignedCount.nextElementSibling.textContent!=='0')throw new Error('El conteo filtrado debe mostrar cero');
     document.getElementById('result').textContent='Todas las pruebas de reportes pasaron.';
   }catch(error){document.getElementById('result').textContent='Error: '+error.message;console.error(error);}
 </script>

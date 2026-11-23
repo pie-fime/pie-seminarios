@@ -90,12 +90,12 @@ En **Administradores**, pulsa **Nuevo administrador**. Captura nombre, usuario o
 
 ### 3.9. Generar reportes
 
-1. Entra en **Reportes** y selecciona el tipo: **Por alumno**, **Por generación / cohorte** o **Por revisor**.
-2. Selecciona la cohorte y, cuando corresponda, el alumno o revisor.
+1. Entra en **Reportes** y selecciona el tipo: **Por alumno**, **Por periodo de evaluación** o **Por revisor**.
+2. Selecciona el periodo y, cuando corresponda, el alumno o revisor. En los reportes por periodo y por revisor puedes filtrar por semestre y programa.
 3. Pulsa **Visualizar reporte**.
 4. Al final del reporte, usa **Descargar CSV** o **Imprimir / Guardar PDF**. Para obtener un PDF, selecciona «Guardar como PDF» en el diálogo de impresión del navegador.
 
-El reporte individual presenta los criterios, las calificaciones y observaciones de los revisores. La calificación final permanece **Pendiente** hasta contar con las tres evaluaciones. Protege los reportes descargados y compártelos solo con personas autorizadas.
+El reporte individual presenta los criterios, las calificaciones y observaciones de los revisores. Debajo de la tabla aparece la calificación final, que permanece **Pendiente** hasta contar con las tres evaluaciones. Protege los reportes descargados y compártelos solo con personas autorizadas.
 
 ## 4. Guía del evaluador
 

@@ -1,0 +1,207 @@
+window.Reports = (() => {
+  async function load(periodId) {
+    if (!API.isDemo()) return API.call('reports', {periodId}, Auth.getSession()?.token);
+    const data = await Admin.load();
+    const periods=data.periods||[data.period];
+    const period=periods.find(p=>p.id===periodId)||periods.find(p=>p.state==='Activo')||periods[0]||{};
+    return {...Admin.forPeriod(data,period?.id),period,periods,rubric:Evaluator.getRubric()};
+  }
+
+  function workspace(data) {
+    const periods = data.periods||[data.period].filter(Boolean);
+    const periodOptions = periods.map(p=>`<option value="${escapeHtml(p.id)}" ${p.id===data.period?.id?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+    const studentOptions = data.students.map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.matricula)} — ${escapeHtml(s.name)}</option>`).join('');
+    const evaluatorOptions = data.evaluators.map(e=>`<option value="${escapeHtml(e.id)}">${escapeHtml(e.name)}</option>`).join('');
+    return `<section class="panel report-controls">
+      <div class="panel-header"><h2>Generar reporte</h2></div>
+      <div class="report-filter-grid">
+        <label>Tipo de reporte
+          <select id="reportType">
+            <option value="student">Por alumno</option>
+            <option value="generation">Por generación / cohorte</option>
+            <option value="evaluator">Por revisor</option>
+          </select>
+        </label>
+        <label>Generación / cohorte
+          <select id="reportPeriod">${periodOptions}</select>
+        </label>
+        <label id="reportStudentFilter">Alumno
+          <select id="reportStudent">${studentOptions}</select>
+        </label>
+        <label id="reportEvaluatorFilter" class="hidden">Revisor
+          <select id="reportEvaluator">${evaluatorOptions}</select>
+        </label>
+      </div>
+      <button class="button primary" id="viewReport">Visualizar reporte</button>
+    </section>
+    <div id="reportPreview" aria-live="polite"></div>`;
+  }
+
+  function createReport(data, type, selection={}) {
+    if (type==='student') return studentReport(data,selection.studentId);
+    if (type==='generation') return generationReport(data);
+    if (type==='evaluator') return evaluatorReport(data,selection.evaluatorId);
+    throw new Error('Tipo de reporte desconocido');
+  }
+
+  function studentReport(data, studentId) {
+    const student=data.students.find(s=>s.id===studentId);
+    if(!student)throw new Error('Selecciona un alumno válido para el reporte.');
+    const reviewers=reviewersFor(data,student.id);
+    const evaluations=reviewers.map(r=>r.evaluation);
+    const rubric=evaluations.find(e=>e?.rubric)?.rubric||data.rubric;
+    const rows=rubric.map(c=>`<tr><th scope="row">${escapeHtml(c.name)}</th>${evaluations.map(e=>`<td>${scoreFor(e,c.id)}</td>`).join('')}</tr>`).join('');
+    const submitted=evaluations.filter(Boolean).length;
+    const final=completeFinal(data,student.id);
+    const reviewerComments=reviewers.map(r=>({name:reviewerName(r.name),text:String(r.evaluation?.observations||'').trim()})).filter(r=>r.text);
+    const comments=reviewerComments.map(r=>`${r.name}: ${r.text}`).join('\n\n');
+    const html=`<article class="panel printable-report">
+      ${reportHeading('Reporte individual del alumno',periodName(data,student.period||data.period?.id))}
+      <dl class="report-meta">
+        ${meta('Matrícula',student.matricula)}${meta('Nombre',student.name)}
+        ${meta('Programa',student.program||'Sin asignar')}${meta('Semestre',student.semester)}${meta('Director de tesis',student.director)}
+        ${meta('Título de tesis',student.thesis)}${meta('Evaluaciones recibidas',`${submitted} de 3`)}
+        ${meta('Calificación final',final===null?'Pendiente':`${final.toFixed(2)} / 100`)}
+      </dl>
+      <div class="table-wrap"><table class="report-table">
+        <thead><tr><th>Criterio</th>${reviewers.map((r,i)=>`<th>R${i+1} · ${escapeHtml(r.name)}</th>`).join('')}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      ${rubric.some(c=>c.hasTimePenalty)?'<p class="muted">Los puntajes mostrados incluyen la penalización por tiempo cuando corresponde.</p>':''}
+      <section class="report-comments-section"><h3>Comentarios de los revisores</h3>
+        <div class="report-comments">${escapeHtml(comments)}</div>
+      </section>
+      <section class="report-signatures" aria-label="Firmas de revisores">
+        ${reviewers.map((r,i)=>`<div class="report-signature"><div class="signature-line"></div><strong>${escapeHtml(r.name)}</strong><span>Revisor ${i+1}</span></div>`).join('')}
+      </section>
+    </article>`;
+    const csvRows=[
+      ['Reporte individual del alumno',periodName(data,student.period||data.period?.id)],
+      ['Matrícula',student.matricula],['Nombre',student.name],['Programa',student.program||'Sin asignar'],['Semestre',student.semester],
+      ['Director de tesis',student.director],['Título de tesis',student.thesis],
+      ['Calificación final',final===null?'Pendiente':final.toFixed(2)],
+      [],
+      ['Criterio',...reviewers.map((r,i)=>`R${i+1} - ${r.name}`)],
+      ...rubric.map(c=>[c.name,...evaluations.map(e=>scoreForCsv(e,c.id))]),
+      [],
+      ['Comentarios de los revisores'],
+      ...reviewerComments.map(r=>[r.name,r.text])
+    ];
+    return {html,csvRows,filename:`reporte-alumno-${student.matricula}.csv`};
+  }
+
+  function generationReport(data) {
+    const students=data.students.map(student=>{
+      const final=completeFinal(data,student.id);
+      return `<tr><td>${escapeHtml(student.matricula)}</td><td>${escapeHtml(student.name)}</td><td>${final===null?'Pendiente':final.toFixed(2)}</td></tr>`;
+    }).join('');
+    const completed=data.students.filter(s=>completeFinal(data,s.id)!==null).length;
+    const html=`<article class="panel printable-report">
+      ${reportHeading('Reporte por generación / cohorte',periodName(data))}
+      <dl class="report-meta">${meta('Generación / cohorte',periodName(data))}${meta('Fecha de inicio',Admin.formatDate(data.period?.start))}${meta('Fecha de fin',Admin.formatDate(data.period?.end))}${meta('Alumnos',data.students.length)}${meta('Calificaciones completas',`${completed} de ${data.students.length}`)}</dl>
+      <div class="table-wrap"><table class="report-table">
+        <thead><tr><th>Matrícula</th><th>Nombre del alumno</th><th>Calificación final (0–100)</th></tr></thead>
+        <tbody>${students||'<tr><td colspan="3">No hay alumnos en esta generación.</td></tr>'}</tbody>
+      </table></div>
+    </article>`;
+    const csvRows=[
+      ['Reporte por generación / cohorte',periodName(data)],
+      ['Alumnos',data.students.length],['Calificaciones completas',`${completed} de ${data.students.length}`],
+      [],
+      ['Matrícula','Nombre del alumno','Calificación final (0-100)'],
+      ...data.students.map(s=>{const final=completeFinal(data,s.id);return [s.matricula,s.name,final===null?'Pendiente':final.toFixed(2)];})
+    ];
+    return {html,csvRows,filename:`reporte-generacion-${filePart(periodName(data))}.csv`};
+  }
+
+  function evaluatorReport(data, evaluatorId) {
+    const evaluator=data.evaluators.find(e=>e.id===evaluatorId);
+    if(!evaluator)throw new Error('Selecciona un revisor válido para el reporte.');
+    const assignments=data.assignments.filter(a=>a.evaluator===evaluator.id&&a.state==='Activa');
+    const studentIds=[...new Set(assignments.map(a=>a.student))];
+    const students=studentIds.map(id=>data.students.find(s=>s.id===id)).filter(Boolean);
+    const evaluations=students.map(student=>data.evaluations.find(e=>e.student===student.id&&e.evaluator===evaluator.id));
+    const rows=students.map((student,i)=>`<tr><td>${escapeHtml(periodName(data,student.period||data.period?.id))}</td><td>${escapeHtml(student.matricula)}</td><td>${escapeHtml(student.name)}</td><td>${evaluations[i]?formatScore(evaluations[i].individual):'Pendiente'}</td></tr>`).join('');
+    const submitted=evaluations.filter(Boolean).length;
+    const html=`<article class="panel printable-report">
+      ${reportHeading('Reporte por revisor',periodName(data))}
+      <dl class="report-meta">${meta('Revisor',evaluator.name)}${meta('Correo',evaluator.email)}${meta('Generación / cohorte',periodName(data))}${meta('Alumnos asignados',students.length)}${meta('Evaluaciones enviadas',`${submitted} de ${students.length}`)}</dl>
+      <div class="table-wrap"><table class="report-table">
+        <thead><tr><th>Generación / cohorte</th><th>Matrícula</th><th>Nombre del alumno</th><th>Calificación del revisor (0–100)</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="4">No hay alumnos asignados a este revisor en esta generación.</td></tr>'}</tbody>
+      </table></div>
+    </article>`;
+    const csvRows=[
+      ['Reporte por revisor',evaluator.name],['Correo',evaluator.email],['Generación / cohorte',periodName(data)],
+      ['Evaluaciones enviadas',`${submitted} de ${students.length}`],[],
+      ['Generación / cohorte','Matrícula','Nombre del alumno','Calificación del revisor (0-100)'],
+      ...students.map((student,i)=>[periodName(data,student.period||data.period?.id),student.matricula,student.name,evaluations[i]?Number(evaluations[i].individual).toFixed(2):'Pendiente'])
+    ];
+    return {html,csvRows,filename:`reporte-revisor-${filePart(evaluator.name)}.csv`};
+  }
+
+  function reviewersFor(data,studentId) {
+    const assignments=data.assignments.filter(a=>a.student===studentId&&a.state==='Activa');
+    const assignedIds=[...new Set(assignments.map(a=>a.evaluator))];
+    const ids=assignments.length===3&&assignedIds.length===3?assignedIds:[];
+    const fallback=data.evaluations.filter(e=>e.student===studentId).map(e=>e.evaluator);
+    const selected=[...new Set(ids.length===3?ids:fallback)].slice(0,3);
+    while(selected.length<3)selected.push('');
+    return selected.map((id,index)=>{
+      const evaluator=data.evaluators.find(e=>e.id===id);
+      const evaluation=id?data.evaluations.find(e=>e.student===studentId&&e.evaluator===id):null;
+      return {id,name:evaluator?.name||`Revisor ${index+1}`,evaluation};
+    });
+  }
+  function reviewerName(name) {
+    return /^(dr|dra)\.?\s/i.test(name)||/^Revisor \d+$/i.test(name)?name:`Dr. ${name}`;
+  }
+  function completeFinal(data,studentId) {
+    const reviewers=reviewersFor(data,studentId);
+    if(reviewers.some(r=>!r.id||!r.evaluation))return null;
+    return Calculations.finalAverage(reviewers.map(r=>r.evaluation.individual));
+  }
+
+  function scoreFor(evaluation,criterionId) {
+    const value=evaluation?.criteria?.[criterionId];
+    return value!==undefined&&value!==null&&value!==''&&Number.isFinite(Number(value))?escapeHtml(value):'—';
+  }
+  function scoreForCsv(evaluation,criterionId) {
+    const value=evaluation?.criteria?.[criterionId];
+    return value!==undefined&&value!==null&&value!==''&&Number.isFinite(Number(value))?value:'';
+  }
+  function formatScore(score) { return Number.isFinite(Number(score))?Number(score).toFixed(2):'Pendiente'; }
+  function periodName(data,periodId=data.period?.id) {
+    return data.periods?.find(p=>p.id===periodId)?.name||data.period?.name||periodId||'Sin generación';
+  }
+  function reportHeading(title,cohort) {
+    return `<header class="report-heading"><p class="eyebrow">Maestría en Ingeniería Eléctrica</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(cohort)}</p></header>`;
+  }
+  function meta(label,value) {
+    return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value||'—')}</dd></div>`;
+  }
+  function escapeHtml(value) {
+    return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  }
+  function filePart(value) {
+    return String(value||'reporte').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'reporte';
+  }
+  function download(report) {
+    const csv=report.csvRows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+    const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'});
+    const link=document.createElement('a');
+    const url=URL.createObjectURL(blob);
+    link.href=url;
+    link.download=report.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function csvCell(value) {
+    const text=String(value??'');
+    return /[",\r\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+  }
+
+  return {load,workspace,createReport,download};
+})();

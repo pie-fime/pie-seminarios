@@ -128,6 +128,7 @@ node --check js/app.js
 Escenarios manuales mínimos:
 
 - Abrir `tests/profile.html` en un navegador para comprobar las pruebas de perfil con datos simulados.
+- Abrir `tests/csv-import.html` en un navegador para probar la importación de estudiantes con matrículas numéricas y de texto.
 - Inicio de sesión de administrador y evaluador.
 - Actualización del perfil propio y cambio de contraseña con verificación de la contraseña actual.
 - Registro e importación CSV de estudiantes.

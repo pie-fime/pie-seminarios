@@ -569,7 +569,7 @@ window.App = (() => {
     if(type==='students'){
       records.forEach((record,index)=>{
         const key=`${record.periodId}|${record.matricula.toLocaleLowerCase('es')}`;
-        if(keys.has(key)||directoryData.students.some(s=>s.period===record.periodId&&s.matricula.toLocaleLowerCase('es')===record.matricula.toLocaleLowerCase('es')))errors.push(`Fila ${index+2}: la matrícula ${record.matricula} ya existe en esa cohorte.`);
+        if(keys.has(key)||directoryData.students.some(s=>s.period===record.periodId&&String(s.matricula).toLocaleLowerCase('es')===record.matricula.toLocaleLowerCase('es')))errors.push(`Fila ${index+2}: la matrícula ${record.matricula} ya existe en esa cohorte.`);
         keys.add(key);
       });
     }else{

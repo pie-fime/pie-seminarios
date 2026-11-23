@@ -152,7 +152,7 @@ th { color:var(--gray-600);font-size:.75rem;text-transform:uppercase;letter-spac
   .panel-header .button-group { width:100%; }
 }
 @media print {
-  @page { size:letter portrait; margin:14mm; }
+  @page { size:letter landscape; margin:14mm; }
   body * { visibility:hidden !important; }
   #reportPreview,#reportPreview * { visibility:visible !important; }
   #reportPreview { position:absolute;inset:0;width:100%;margin:0;padding:0; }
@@ -161,7 +161,7 @@ th { color:var(--gray-600);font-size:.75rem;text-transform:uppercase;letter-spac
   .report-table { min-width:0;font-size:9pt; }
   .report-table th,.report-table td { padding:6px; }
   .report-heading,.report-meta,.report-comments-section,.report-signatures { break-inside:avoid; }
-  .report-comments { min-height:90px; }
-  /* Padding survives a page break where the top margin can be discarded. */
-  .report-signatures { margin-top:0;padding-top:55px; }
+  .report-comments { min-height:80px; }
+  .report-comments { font-size:9pt; }
+  .report-signatures { margin-top:0;padding-top:1in; }
 }

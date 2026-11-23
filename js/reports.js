@@ -60,24 +60,24 @@ window.Reports = (() => {
     const evaluations=reviewers.map(r=>r.evaluation);
     const rubric=evaluations.find(e=>e?.rubric)?.rubric||data.rubric;
     const rows=rubric.map(c=>`<tr><th scope="row">${escapeHtml(c.name)}</th>${evaluations.map(e=>`<td>${scoreFor(e,c.id)}</td>`).join('')}</tr>`).join('');
-    const submitted=evaluations.filter(Boolean).length;
     const final=completeFinal(data,student.id);
     const reviewerComments=reviewers.map(r=>({name:reviewerName(r.name),text:String(r.evaluation?.observations||'').trim()})).filter(r=>r.text);
-    const comments=reviewerComments.map(r=>`${r.name}: ${r.text}`).join('\n\n');
+    const comments=reviewerComments.map(r=>`${r.name}: ${r.text}`).join(' ');
     const html=`<article class="panel printable-report">
       ${reportHeading('Reporte individual del alumno',periodName(data,student.period||data.period?.id))}
       <dl class="report-meta">
         ${meta('Matrícula',student.matricula)}${meta('Nombre',student.name)}
         ${meta('Programa',student.program||'Sin asignar')}${meta('Semestre',student.semester)}${meta('Director de tesis',student.director)}
-        ${meta('Título de tesis',student.thesis)}${meta('Evaluaciones recibidas',`${submitted} de 3`)}
+        ${meta('Título de tesis',student.thesis)}
       </dl>
       <div class="table-wrap"><table class="report-table">
         <thead><tr><th>Criterio</th>${reviewers.map((r,i)=>`<th>R${i+1} · ${escapeHtml(r.name)}</th>`).join('')}</tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
-      <p class="report-final"><strong>Calificación final:</strong> ${final===null?'Pendiente':`${final.toFixed(2)} / 100`}</p>
       ${rubric.some(c=>c.hasTimePenalty)?'<p class="muted">Los puntajes mostrados incluyen la penalización por tiempo cuando corresponde.</p>':''}
-      <section class="report-comments-section"><h3>Comentarios de los revisores</h3>
+      <p class="report-final"><strong>Calificación final:</strong> ${final===null?'Pendiente':`${final.toFixed(2)} / 100`}</p>
+      <section class="report-comments-section">
+        <h3>Comentarios de los revisores</h3>
         <div class="report-comments">${escapeHtml(comments)}</div>
       </section>
       <section class="report-signatures" aria-label="Firmas de revisores">

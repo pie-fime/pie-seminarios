@@ -18,18 +18,25 @@
     const report=Reports.createReport(data,'student',{studentId:'S1'});
     const doc=new DOMParser().parseFromString(report.html,'text/html');
     const comments=doc.querySelector('.report-comments').textContent;
+    const commentsSection=doc.querySelector('.report-comments-section');
     const expected=['Marta Ejemplo','Luis Ejemplo','Dra. Ana Ejemplo'];
     const actual=report.csvRows.slice(-3).map(row=>row[0]);
     if(expected.some((name,index)=>!comments.includes(`${name}: Comentario`)||actual[index]!==name))
       throw new Error('Los nombres de los comentarios no coinciden en el reporte y el CSV');
+    if(comments.includes('\n'))throw new Error('Los comentarios deben mostrarse seguidos, sin saltos manuales de línea');
+    if(doc.querySelector('.report-meta').textContent.includes('Evaluaciones recibidas'))
+      throw new Error('El reporte individual no debe mostrar el conteo de evaluaciones');
     if(comments.includes('Dr. Luis Ejemplo')||comments.includes('Dr. Marta Ejemplo'))
       throw new Error('El reporte añadió o conservó Dr. en los comentarios');
     if(!doc.querySelector('thead').textContent.includes('Dr. Luis Ejemplo'))
       throw new Error('Se modificó el nombre en la tabla de criterios');
     if(doc.querySelector('tfoot'))throw new Error('El reporte no debe incluir una fila de promedios por revisor');
     const final=doc.querySelector('.report-final');
-    if(!final.textContent.includes('63.20 / 100')||!(doc.querySelector('.table-wrap').compareDocumentPosition(final)&Node.DOCUMENT_POSITION_FOLLOWING))
-      throw new Error('La calificación final no aparece debajo de la tabla');
+    if(!final.textContent.includes('63.20 / 100')||!commentsSection.querySelector('h3')||
+       commentsSection.querySelector('h3').textContent!=='Comentarios de los revisores'||
+       !(final.compareDocumentPosition(commentsSection)&Node.DOCUMENT_POSITION_FOLLOWING)||
+       !(doc.querySelector('.table-wrap').compareDocumentPosition(final)&Node.DOCUMENT_POSITION_FOLLOWING))
+      throw new Error('La calificación final debe ir arriba del encabezado de comentarios');
     const criterionIndex=report.csvRows.findIndex(row=>row[0]==='Criterio de prueba');
     if(report.csvRows[criterionIndex+1][0]!=='Calificación final'||report.csvRows[criterionIndex+1][1]!=='63.20')
       throw new Error('El CSV no muestra la calificación final después de los criterios');

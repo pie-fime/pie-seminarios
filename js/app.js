@@ -41,7 +41,14 @@ window.App = (() => {
       await enterApp();
     }catch(error){els.loginError.textContent=error.message;els.loginError.classList.remove('hidden');}
   }
-  async function logout(){await Auth.logout();setMenuOpen(false);session=null;els.appView.classList.add('hidden');els.loginView.classList.remove('hidden');}
+  async function logout(){
+    await Auth.logout();
+    session=null;closeModal();setMenuOpen(false);
+    els.modalBody.replaceChildren();els.content.replaceChildren();els.nav.replaceChildren();
+    els.loginForm.reset();els.loginError.classList.add('hidden');
+    els.appView.classList.add('hidden');els.loginView.classList.remove('hidden');
+    window.location.reload();
+  }
   async function enterApp(){
     els.loginView.classList.add('hidden');els.appView.classList.remove('hidden');els.userName.textContent=session.name;
     if(session.role==='admin'){await loadAdmin();buildAdminNav();renderAdmin('dashboard');}

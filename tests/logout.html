@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Pruebas de cierre de sesión</title></head>
+<body>
+<pre id="result">Ejecutando pruebas...</pre>
+<iframe id="app" title="Aplicación de prueba" hidden></iframe>
+<script>
+  const store=new Map();
+  window.testStorage={
+    getItem:key=>store.get(key)??null,
+    setItem:(key,value)=>store.set(key,String(value)),
+    removeItem:key=>store.delete(key)
+  };
+  const frame=document.getElementById('app');
+  const loaded=()=>new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+  function waitFor(predicate){
+    return new Promise((resolve,reject)=>{
+      const start=Date.now();
+      const timer=setInterval(()=>{
+        if(predicate()){clearInterval(timer);resolve();}
+        else if(Date.now()-start>5000){clearInterval(timer);reject(new Error('Tiempo agotado esperando la aplicación'));}
+      },20);
+    });
+  }
+  async function run(){
+    const assert=(condition,message)=>{if(!condition)throw new Error(message);};
+    let ready=loaded();
+    frame.srcdoc=`<!doctype html><html><body>
+      <div id="loginView"><form id="loginForm"><input id="username"><input id="password"><button>Entrar</button></form><div id="loginError"></div></div>
+      <div id="appView" class="hidden"><aside id="sidebar"><button id="closeMenuButton"></button><nav id="mainNav"></nav><span id="userName"></span><button id="profileButton"></button><button id="logoutButton"></button></aside>
+      <button id="menuBackdrop"></button><button id="menuButton"></button><span id="activePeriodLabel"></span><h1 id="pageTitle"></h1><span id="connectionBadge"></span><div id="content"></div></div>
+      <div id="modal" class="hidden"><h2 id="modalTitle"></h2><button id="modalClose"></button><div id="modalBody"></div></div><div id="toastRegion"></div>
+      <script>Object.defineProperty(window,'localStorage',{value:parent.testStorage});<\/script>
+      <script src="../js/calculations.js"><\/script><script src="../js/api.js"><\/script>
+      <script>window.API.isDemo=()=>true;<\/script>
+      <script src="../js/auth.js"><\/script><script src="../js/csv.js"><\/script><script src="../js/rubric-default.js"><\/script>
+      <script src="../js/admin.js"><\/script><script src="../js/evaluator.js"><\/script><script src="../js/reports.js"><\/script><script src="../js/app.js"><\/script>
+    </body></html>`;
+    await ready;
+    const login=async(username,password,title)=>{
+      const doc=frame.contentDocument;
+      doc.getElementById('username').value=username;
+      doc.getElementById('password').value=password;
+      doc.getElementById('loginForm').requestSubmit();
+      await waitFor(()=>doc.getElementById('pageTitle').textContent===title);
+    };
+    const logout=async()=>{
+      const doc=frame.contentDocument;
+      ready=loaded();
+      doc.getElementById('logoutButton').click();
+      await ready;
+      const next=frame.contentDocument;
+      assert(!next.getElementById('loginView').classList.contains('hidden'),'No se mostró el inicio de sesión');
+      assert(next.getElementById('appView').classList.contains('hidden'),'La aplicación quedó abierta');
+      assert(next.getElementById('modal').classList.contains('hidden'),'La ventana anterior quedó abierta');
+      assert(!next.getElementById('content').textContent,'La vista anterior no se descartó');
+      assert(!next.getElementById('password').value,'La contraseña permaneció en el formulario');
+      assert(!store.has('pie-seminarios-session'),'La sesión permaneció guardada');
+    };
+    await login('admin','admin123','Resumen');
+    let doc=frame.contentDocument;
+    doc.querySelector('[data-view="students"]').click();
+    await waitFor(()=>doc.getElementById('studentSearch'));
+    doc.getElementById('studentSearch').value='Mariana';
+    doc.getElementById('studentSearch').dispatchEvent(new Event('input',{bubbles:true}));
+    doc.getElementById('newStudent').click();
+    assert(!doc.getElementById('modal').classList.contains('hidden'),'No se abrió el formulario');
+    await logout();
+    await login('admin','admin123','Resumen');
+    doc=frame.contentDocument;
+    assert(doc.querySelector('[data-view="dashboard"].active'),'El administrador no volvió al resumen');
+    doc.querySelector('[data-view="students"]').click();
+    await waitFor(()=>doc.getElementById('studentSearch'));
+    assert(!doc.getElementById('studentSearch').value,'Se conservó el filtro anterior');
+    await logout();
+    await login('evaluador','evaluador123','Mis estudiantes');
+    doc=frame.contentDocument;
+    doc.querySelector('[data-evaluate]').click();
+    doc.querySelector('#evaluationForm [name="observations"]').value='Borrador sin guardar';
+    await logout();
+    await login('evaluador','evaluador123','Mis estudiantes');
+    doc=frame.contentDocument;
+    assert(doc.getElementById('modal').classList.contains('hidden'),'La evaluación anterior quedó abierta');
+    doc.querySelector('[data-evaluate]').click();
+    assert(!doc.querySelector('#evaluationForm [name="observations"]').value,'Se conservó el borrador sin guardar');
+    assert((await frame.contentWindow.Admin.load()).students.length===3,'Se borraron datos guardados');
+    document.getElementById('result').textContent='Todas las pruebas de cierre de sesión pasaron.';
+  }
+  run().catch(error=>{document.getElementById('result').textContent='Error: '+error.message;console.error(error);});
+</script>
+</body>
+</html>

@@ -12,7 +12,7 @@ SEMI-TESIS permite organizar y evaluar seminarios de avance de tesis. El **admin
 2. Escribe el **Usuario** y la **Contraseña** proporcionados por el administrador.
 3. Pulsa **Iniciar sesión**.
 4. Usa el menú lateral para ir a la sección deseada. En celular, pulsa **☰** para abrirlo y **×** para cerrarlo.
-5. Al terminar, selecciona **Cerrar sesión**.
+5. Al terminar, selecciona **Cerrar sesión**. Se cerrarán las ventanas y se descartarán los cambios que no hayas guardado; los datos guardados se conservan.
 
 Puedes cambiar tu contraseña desde **Mi perfil** cuando hayas iniciado sesión. Si no puedes entrar o necesitas restablecerla, contacta al administrador técnico. No compartas tu contraseña con otras personas.
 

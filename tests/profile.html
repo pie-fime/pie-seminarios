@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Pruebas de perfil</title></head>
+<body>
+<pre id="result">Ejecutando pruebas...</pre>
+<script>
+  const storage=new Map();
+  Object.defineProperty(window,'localStorage',{value:{
+    getItem:key=>storage.get(key)??null,
+    setItem:(key,value)=>storage.set(key,String(value)),
+    removeItem:key=>storage.delete(key)
+  }});
+  window.API={isDemo:()=>true};
+  let data;
+  window.Admin={
+    load:async()=>data,
+    loadManagement:async()=>data,
+    saveDemo:value=>{data=value;},
+    forPeriod:value=>value
+  };
+</script>
+<script src="../backend/Code.gs"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/evaluator.js"></script>
+<script>
+  async function run(){
+    const assert=(condition,message)=>{if(!condition)throw new Error(message);};
+    async function rejects(action,message){
+      let failed=false;
+      try{await action();}catch(error){failed=error.message.includes(message);}
+      assert(failed,'Se esperaba el error: '+message);
+    }
+    data={
+      period:{id:'P1'},
+      students:[{id:'S1',period:'P1'}],
+      evaluators:[
+        {id:'EV-001',name:'Ana',username:'evaluador',email:'ana@ejemplo.mx',state:'Activo'},
+        {id:'EV-002',name:'Otro',username:'otro',email:'otro@ejemplo.mx',state:'Activo'}
+      ],
+      assignments:[{student:'S1',evaluator:'EV-001',state:'Activa'}],
+      evaluations:[]
+    };
+    let session=await Auth.login('admin','admin123');
+    Auth.saveSession(session);
+    await rejects(()=>Auth.updateProfile({name:'Admin',username:'admin',currentPassword:'mal',newPassword:''}),'incorrecta');
+    await Auth.updateProfile({name:'Admin nuevo',username:'nuevo-admin',currentPassword:'admin123',newPassword:'clave-nueva-123'});
+    await rejects(()=>Auth.login('admin','admin123'),'incorrectos');
+    session=await Auth.login('nuevo-admin','clave-nueva-123');
+    assert(session.name==='Admin nuevo','El administrador no se actualizó');
+    Auth.saveSession(session);
+    await Auth.updateProfile({name:'Admin nuevo',username:'nuevo-admin',currentPassword:'clave-nueva-123',newPassword:'otra-clave-123'});
+    await rejects(()=>Auth.login('nuevo-admin','clave-nueva-123'),'incorrectos');
+    assert((await Auth.login('nuevo-admin','otra-clave-123')).name==='Admin nuevo','No se cambió la contraseña con el mismo usuario');
+    await Auth.createDemoAdmin({name:'Segundo',username:'segundo',password:'contraseña-inicial-123'});
+    Auth.saveSession(await Auth.login('segundo','contraseña-inicial-123'));
+    await Auth.updateProfile({name:'Segundo nuevo',username:'segundo2',currentPassword:'contraseña-inicial-123',newPassword:'contraseña-nueva-123'});
+    await rejects(()=>Auth.login('segundo','contraseña-inicial-123'),'incorrectos');
+    assert((await Auth.login('segundo2','contraseña-nueva-123')).name==='Segundo nuevo','El segundo administrador no se actualizó');
+    Auth.saveSession(await Auth.login('evaluador','evaluador123'));
+    const evaluatorProfile={name:'Ana nueva',username:'ana.nueva',email:'nueva@ejemplo.mx',currentPassword:'evaluador123',newPassword:'clave-evaluador-123'};
+    await rejects(()=>Auth.updateProfile({...evaluatorProfile,username:'otro'}),'usuario ya existe');
+    await rejects(()=>Auth.updateProfile({...evaluatorProfile,email:'otro@ejemplo.mx'}),'correo ya está registrado');
+    await Auth.updateProfile(evaluatorProfile);
+    await rejects(()=>Auth.login('evaluador','evaluador123'),'incorrectos');
+    Auth.saveSession(await Auth.login('ana.nueva','clave-evaluador-123'));
+    assert((await Evaluator.load()).students.length===1,'La asignación del evaluador se perdió');
+
+    const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('sal'+'clave-legacy-123'));
+    const legacyHash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+    delete data.demoDefaultAdmin;
+    data.demoAccounts={legacy:{role:'admin',name:'Legacy',username:'legacy',salt:'sal',hash:legacyHash}};
+    assert((await Auth.login('legacy','clave-legacy-123')).name==='Legacy','No se migró la cuenta demo anterior');
+    await rejects(()=>Auth.login('admin','admin123'),'incorrectos');
+    assert(!data.demoAccounts,'No se eliminaron las credenciales demo anteriores');
+
+    const sheets={
+      Usuarios:[['Salt','Nombre','Debe_Cambiar','ID_Usuario','Usuario','Estado','Password_Hash','Rol'],
+        ['sal','Ana',true,'U1','ana','Activo','hash:actual:sal','evaluator'],
+        ['sal','Otro',false,'U2','otro','Activo','hash:otro:sal','admin']],
+      Evaluadores:[['Correo','Usuario','Nombre','ID_Evaluador'],
+        ['ana@ejemplo.mx','ana','Ana','EV1'],['otro@ejemplo.mx','otro','Otro','EV2']]
+    };
+    let failUserWrite=false;
+    window.Utilities={getUuid:()=> 'nueva-sal'};
+    window.SpreadsheetApp={flush:()=>{}};
+    window.hashPassword=(password,salt)=>`hash:${password}:${salt}`;
+    window.sh=name=>({
+      getDataRange:()=>({getValues:()=>sheets[name].map(row=>row.slice())}),
+      getRange:(row,column,height,width)=>({
+        getFormulas:()=>[Array(width).fill('')],
+        setValues:values=>{
+          if(failUserWrite&&name==='Usuarios'){failUserWrite=false;throw new Error('Fallo simulado');}
+          sheets[name][row-1]=values[0].slice();
+        }
+      })
+    });
+    const serverSession={id:'U1',role:'evaluator',username:'ana',name:'Ana'};
+    const serverProfile={name:'Ana nueva',username:'ana.nueva',email:'nueva@ejemplo.mx',currentPassword:'actual',newPassword:'clave-nueva-123'};
+    await rejects(()=>updateProfile(serverSession,{...serverProfile,currentPassword:'mal'}),'incorrecta');
+    await rejects(()=>updateProfile(serverSession,{...serverProfile,username:'otro'}),'usuario ya existe');
+    await rejects(()=>updateProfile(serverSession,{...serverProfile,email:'otro@ejemplo.mx'}),'correo ya está registrado');
+    await rejects(()=>updateProfile(serverSession,{...serverProfile,newPassword:'corta'}),'12 caracteres');
+    assert(sheets.Usuarios[1][4]==='ana'&&sheets.Evaluadores[1][1]==='ana','Una validación cambió datos');
+    failUserWrite=true;
+    await rejects(()=>updateProfile(serverSession,serverProfile),'Fallo simulado');
+    assert(sheets.Usuarios[1][4]==='ana'&&sheets.Evaluadores[1][1]==='ana','No se restauró el evaluador');
+    updateProfile(serverSession,serverProfile);
+    assert(sheets.Usuarios[1][4]==='ana.nueva'&&sheets.Evaluadores[1][1]==='ana.nueva','Las hojas no se sincronizaron');
+    assert(sheets.Usuarios[1][2]===false&&sheets.Usuarios[1][6]==='hash:clave-nueva-123:nueva-sal','La contraseña no se actualizó');
+    updateProfile({id:'U2',role:'admin',username:'otro',name:'Otro'},
+      {name:'Admin editado',username:'admin.editado',currentPassword:'otro',newPassword:''});
+    assert(sheets.Usuarios[2][4]==='admin.editado'&&sheets.Usuarios[2][6]==='hash:otro:sal','No se actualizó el administrador correctamente');
+    document.getElementById('result').textContent='Todas las pruebas de perfil pasaron.';
+  }
+  run().catch(error=>{document.getElementById('result').textContent='Error: '+error.message;console.error(error);});
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@ SEMI-TESIS permite organizar y evaluar seminarios de avance de tesis. El **admin
 4. Usa el menú lateral para ir a la sección deseada. En celular, pulsa **☰** para abrirlo y **×** para cerrarlo.
 5. Al terminar, selecciona **Cerrar sesión**.
 
-La aplicación todavía no permite cambiar la contraseña desde la interfaz. Si no puedes entrar o necesitas restablecerla, contacta al administrador técnico. No compartas tu contraseña con otras personas.
+Puedes cambiar tu contraseña desde **Mi perfil** cuando hayas iniciado sesión. Si no puedes entrar o necesitas restablecerla, contacta al administrador técnico. No compartas tu contraseña con otras personas.
 
 ### Modo demostración y servidor
 

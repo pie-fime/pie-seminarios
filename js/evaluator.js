@@ -4,7 +4,7 @@ window.Evaluator = (() => {
     if (!API.isDemo()) return API.call('evaluatorDashboard', {}, Auth.getSession()?.token);
     const source=await Admin.load();
     const admin=Admin.forPeriod(source,source.period?.id);
-    const evaluator=admin.evaluators.find(e=>e.username==='evaluador');
+    const evaluator=admin.evaluators.find(e=>e.username===(Auth.getSession()?.username||'evaluador'));
     const assigned=admin.assignments.filter(a=>a.evaluator===evaluator?.id&&a.state==='Activa').map(a=>a.student);
     const evaluations=admin.evaluations.filter(e=>(e.round||1)===2);
     return {evaluator,sourceData:source,period:admin.period,evaluations,

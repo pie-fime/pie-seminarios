@@ -57,18 +57,23 @@ window.App = (() => {
   function buildEvaluatorNav(){
     els.nav.innerHTML='<button class="nav-button active" data-view="dashboard">Mis estudiantes</button>';
   }
-  function openProfile(){
-    const evaluator=session.role==='evaluator'?(data.evaluator||{}):{};
+  async function openProfile(){
+    setMenuOpen(false);
+    let profile;
+    try{profile=await Auth.getProfile();}catch(error){toast(error.message);return;}
     openModal('Mi perfil',`<form id="profileForm" class="form-grid">
-      <label>Nombre completo<input name="name" value="${escapeHtml(session.name||evaluator.name||'')}" required></label>
-      <label>Usuario<input name="username" value="${escapeHtml(session.username||evaluator.username||'')}" required></label>
-      ${session.role==='evaluator'?`<label>Correo<input type="email" name="email" value="${escapeHtml(session.email||evaluator.email||'')}" required></label>`:''}
+      <label>Nombre completo<input name="name" required></label>
+      <label>Usuario<input name="username" required></label>
+      ${session.role==='evaluator'?'<label>Correo<input type="email" name="email" required></label>':''}
       <label class="full">Contraseña actual<input type="password" name="currentPassword" autocomplete="current-password" required></label>
       <label>Nueva contraseña <span class="muted">(opcional)</span><input type="password" name="newPassword" minlength="12" autocomplete="new-password"></label>
       <label>Confirmar nueva contraseña<input type="password" name="confirmation" minlength="12" autocomplete="new-password"></label>
       <div class="full"><button class="button primary" type="submit">Guardar cambios</button></div>
     </form>`);
     const form=document.getElementById('profileForm');
+    form.elements.name.value=profile.name;
+    form.elements.username.value=profile.username;
+    if(session.role==='evaluator')form.elements.email.value=profile.email;
     form.onsubmit=async event=>{
       event.preventDefault();const button=form.querySelector('[type=submit]');button.disabled=true;
       try{
@@ -102,7 +107,7 @@ window.App = (() => {
       let administrators;
       try{
         administrators=API.isDemo()
-          ? [{name:'Administrador',username:'admin',state:'Activo'},...((await Admin.loadManagement()).demoAdmins||[]).map(a=>({name:a.name,username:a.username,state:'Activo'}))]
+          ? await Admin.loadManagement().then(d=>[d.demoDefaultAdmin||{name:'Administrador',username:'admin'},...(d.demoAdmins||[])].map(a=>({name:a.name,username:a.username,state:'Activo'})))
           : await API.call('administrators',{},session.token);
       }catch(error){
         els.content.innerHTML='<section class="panel"><p>No se pudo cargar la lista de administradores.</p></section>';
@@ -433,7 +438,7 @@ window.App = (() => {
         if(!API.isDemo())await API.call('saveEvaluator',{evaluator},session.token);
         else{
           const current=await Admin.loadManagement(),username=evaluator.username.trim().toLowerCase();
-          if(['admin','evaluador'].includes(username)||(current.demoAdmins||[]).some(a=>a.username.toLowerCase()===username)||current.evaluators.some(item=>item.username.toLowerCase()===username))throw new Error('El usuario ya existe');
+          if(Auth.demoUsernameTaken(current,username))throw new Error('El usuario ya existe');
           evaluator.id=Admin.nextDemoId(current.evaluators,'EV');evaluator.state='Activo';current.evaluators.push(evaluator);Admin.saveDemo(current);
         }
         closeModal();toast('Evaluador guardado');renderAdmin('evaluators');
@@ -572,7 +577,7 @@ window.App = (() => {
       records.forEach((record,index)=>{
         const username=record.username.toLocaleLowerCase('es');
         const email=record.email.toLocaleLowerCase('es');
-        if(keys.has(username)||directoryData.evaluators.some(e=>e.username.toLocaleLowerCase('es')===username)||(API.isDemo()&&(['admin','evaluador'].includes(username)||(directoryData.demoAdmins||[]).some(a=>a.username.toLocaleLowerCase('es')===username))))errors.push(`Fila ${index+2}: el usuario ${record.username} ya existe.`);
+        if(keys.has(username)||directoryData.evaluators.some(e=>e.username.toLocaleLowerCase('es')===username)||(API.isDemo()&&Auth.demoUsernameTaken(directoryData,username)))errors.push(`Fila ${index+2}: el usuario ${record.username} ya existe.`);
         if(emails.has(email)||directoryData.evaluators.some(e=>e.email.toLocaleLowerCase('es')===email))errors.push(`Fila ${index+2}: el correo ${record.email} ya existe.`);
         keys.add(username);
         emails.add(email);

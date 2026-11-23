@@ -240,6 +240,7 @@ function doPost(e) {
     if (body.action==='login') return json({ok:true,data:login(body.username,body.password)});
     const session=validateSession(body.token);
     if (!session) return json({ok:false,error:'Sesión inválida o vencida'});
+    if (body.action==='getProfile') return json({ok:true,data:getProfile(session)});
     if (body.action==='updateProfile') return json({ok:true,data:withDirectoryLock(()=>updateProfile(session,body.profile))});
     if (body.action==='dashboard' && session.role==='admin') return json({ok:true,data:dashboard()});
     if (body.action==='managementData' && session.role==='admin') return json({ok:true,data:managementData()});
@@ -293,48 +294,92 @@ function validateSession(token){
   const user=table('Usuarios').find(u=>u.ID_Usuario===found[ui] && u.Estado==='Activo');if(!user)return null;
   return {id:user.ID_Usuario,name:user.Nombre,username:user.Usuario,role:user.Rol};
 }
+function getProfile(session){
+  let email='';
+  if(session.role==='evaluator'){
+    const matches=table('Evaluadores').filter(e=>e.Usuario===session.username);
+    if(matches.length!==1)throw new Error('No se encontró un registro único del evaluador');
+    email=matches[0].Correo;
+  }
+  return {name:session.name,username:session.username,email:email};
+}
 function updateProfile(session, profile){
-  if(!profile || typeof profile.currentPassword!=='string')
-    throw new Error('Introduce tu contraseña actual');
+  if(!profile || typeof profile.currentPassword!=='string' || typeof profile.name!=='string' ||
+     typeof profile.username!=='string' || typeof profile.newPassword!=='string' ||
+     (session.role==='evaluator'&&typeof profile.email!=='string'))
+    throw new Error('Introduce los datos del perfil');
   const usersSheet=sh('Usuarios');
   const values=usersSheet.getDataRange().getValues(), headers=values[0];
+  if(['ID_Usuario','Nombre','Usuario','Password_Hash','Salt','Rol','Estado','Debe_Cambiar'].some(h=>headers.filter(v=>v===h).length!==1))
+    throw new Error('La hoja Usuarios no tiene las columnas necesarias');
   const idIndex=headers.indexOf('ID_Usuario'), nameIndex=headers.indexOf('Nombre');
   const usernameIndex=headers.indexOf('Usuario'), hashIndex=headers.indexOf('Password_Hash');
   const saltIndex=headers.indexOf('Salt');
-  const rowIndex=values.findIndex((row,index)=>index>0&&row[idIndex]===session.id);
-  if(rowIndex<1)throw new Error('No se encontró la cuenta');
+  const matches=values.map((row,index)=>({row,index})).filter(item=>item.index>0&&item.row[idIndex]===session.id);
+  if(matches.length!==1||matches[0].row[headers.indexOf('Estado')]!=='Activo'||matches[0].row[headers.indexOf('Rol')]!==session.role)
+    throw new Error('No se encontró una cuenta activa única');
+  const rowIndex=matches[0].index;
   const row=values[rowIndex];
   if(hashPassword(profile.currentPassword,row[saltIndex])!==row[hashIndex])
     throw new Error('La contraseña actual es incorrecta');
-  const name=String(profile.name||'').trim(), username=String(profile.username||'').trim();
+  const name=profile.name.trim(), username=profile.username.trim();
   if(!name||!username||/\s/.test(username)||name.startsWith('=')||username.startsWith('='))
     throw new Error('Introduce un nombre y un usuario válidos, sin espacios en el usuario');
   if(values.some((other,index)=>index!==rowIndex&&String(other[usernameIndex]).toLowerCase()===username.toLowerCase()))
     throw new Error('El usuario ya existe');
-  const newPassword=String(profile.newPassword||'');
+  const newPassword=profile.newPassword;
   if(newPassword && (newPassword.length<12||!newPassword.trim()))
     throw new Error('La nueva contraseña debe tener al menos 12 caracteres y no estar vacía');
   let email='';
-  let evaluatorSheet,evaluatorRow,evaluatorValues,evaluatorHeaders,evaluatorName,evaluatorEmail;
+  let evaluatorSheet,evaluatorRow,evaluatorValues,evaluatorHeaders;
   if(session.role==='evaluator'){
     evaluatorSheet=sh('Evaluadores'); evaluatorValues=evaluatorSheet.getDataRange().getValues();
     evaluatorHeaders=evaluatorValues[0];
+    if(['Nombre','Correo','Usuario'].some(h=>evaluatorHeaders.filter(v=>v===h).length!==1))
+      throw new Error('La hoja Evaluadores no tiene las columnas necesarias');
     const evaluatorUsername=evaluatorHeaders.indexOf('Usuario');
-    evaluatorName=evaluatorHeaders.indexOf('Nombre');
-    evaluatorEmail=evaluatorHeaders.indexOf('Correo');
-    evaluatorRow=evaluatorValues.findIndex((item,index)=>index>0&&item[evaluatorUsername]===row[usernameIndex]);
-    if(evaluatorRow<1)throw new Error('No se encontró el registro del evaluador');
-    email=String(profile.email||'').trim();
-    if(!email||email.startsWith('='))throw new Error('Introduce un correo válido');
-    if(evaluatorValues.some((item,index)=>index!==evaluatorRow&&String(item[evaluatorEmail]).toLowerCase()===email.toLowerCase()))
+    const evaluatorEmail=evaluatorHeaders.indexOf('Correo');
+    const evaluatorMatches=evaluatorValues.map((item,index)=>({item,index})).filter(item=>item.index>0&&item.item[evaluatorUsername]===row[usernameIndex]);
+    if(evaluatorMatches.length!==1)throw new Error('No se encontró un registro único del evaluador');
+    evaluatorRow=evaluatorMatches[0].index;
+    email=profile.email.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.startsWith('='))throw new Error('Introduce un correo válido');
+    if(evaluatorValues.some((item,index)=>index>0&&index!==evaluatorRow&&String(item[evaluatorEmail]).toLowerCase()===email.toLowerCase()))
       throw new Error('El correo ya está registrado');
   }
-  usersSheet.getRange(rowIndex+1,nameIndex+1,1,2).setValues([[name,username]]);
+  const userRange=usersSheet.getRange(rowIndex+1,1,1,headers.length);
+  const userFormulas=userRange.getFormulas()[0];
+  const originalUser=row.map((value,index)=>userFormulas[index]||value);
+  const updatedUser=originalUser.slice();
+  updatedUser[nameIndex]=name;updatedUser[usernameIndex]=username;
   if(newPassword){
     const newSalt=Utilities.getUuid();
-    usersSheet.getRange(rowIndex+1,hashIndex+1,1,2).setValues([[hashPassword(newPassword,newSalt),newSalt]]);
+    updatedUser[hashIndex]=hashPassword(newPassword,newSalt);updatedUser[saltIndex]=newSalt;
+    updatedUser[headers.indexOf('Debe_Cambiar')]=false;
   }
-  if(session.role==='evaluator')evaluatorSheet.getRange(evaluatorRow+1,evaluatorName+1,1,3).setValues([[name,email,username]]);
+  if(session.role==='evaluator'){
+    const range=evaluatorSheet.getRange(evaluatorRow+1,1,1,evaluatorHeaders.length);
+    const formulas=range.getFormulas()[0];
+    const original=evaluatorValues[evaluatorRow].map((value,index)=>formulas[index]||value);
+    const updated=original.slice();
+    updated[evaluatorHeaders.indexOf('Nombre')]=name;
+    updated[evaluatorHeaders.indexOf('Correo')]=email;
+    updated[evaluatorHeaders.indexOf('Usuario')]=username;
+    try{
+      range.setValues([updated]);
+      userRange.setValues([updatedUser]);
+      SpreadsheetApp.flush();
+    }
+    catch(error){
+      try{
+        range.setValues([original]);
+        userRange.setValues([originalUser]);
+        SpreadsheetApp.flush();
+      }
+      catch(rollbackError){throw new Error('No se pudo guardar el perfil ni restaurar los datos: '+rollbackError.message);}
+      throw error;
+    }
+  }else userRange.setValues([updatedUser]);
   return {name:name,username:username,email:email};
 }
 

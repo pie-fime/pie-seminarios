@@ -25,7 +25,7 @@ Modo demostración:
 - Administrador: `admin` / `admin123`
 - Evaluador: `evaluador` / `evaluador123`
 
-Estas credenciales son exclusivas del modo demostración y no deben utilizarse para cuentas reales. El demo incluye registros de ejemplo y permite probar altas y asignaciones. Los cambios se guardan en el almacenamiento local de ese navegador y no se sincronizan entre dispositivos ni con Google Sheets.
+Estas credenciales iniciales son exclusivas del modo demostración y no deben utilizarse para cuentas reales. Si las cambias desde el perfil, utiliza las nuevas para entrar. El demo incluye registros de ejemplo y permite probar altas y asignaciones. Los cambios se guardan en el almacenamiento local de ese navegador y no se sincronizan entre dispositivos ni con Google Sheets.
 
 ## Configurar Google Sheets y Apps Script
 
@@ -40,7 +40,8 @@ Estas credenciales son exclusivas del modo demostración y no deben utilizarse p
 9. Configurar **Ejecutar como: yo** y **Quién tiene acceso: cualquier persona**.
 10. Copiar la URL terminada en `/exec`.
 
-La aplicación aún no permite cambiar contraseñas desde la interfaz. Restringe el acceso de edición a la hoja y al proyecto Apps Script. No guardes contraseñas, exportaciones de datos reales ni tokens en el repositorio.
+Cada usuario puede actualizar su perfil y contraseña desde **Mi perfil**. Restringe el acceso de edición a la hoja y al proyecto Apps Script. No guardes contraseñas, exportaciones de datos reales ni tokens en el repositorio.
+En instalaciones existentes, actualiza `backend/Code.gs` en Apps Script y publica una nueva versión de la aplicación web para habilitar el perfil.
 
 ### Hojas creadas
 
@@ -126,6 +127,7 @@ node --check js/app.js
 
 Escenarios manuales mínimos:
 
+- Abrir `tests/profile.html` en un navegador para comprobar las pruebas de perfil con datos simulados.
 - Inicio de sesión de administrador y evaluador.
 - Actualización del perfil propio y cambio de contraseña con verificación de la contraseña actual.
 - Registro e importación CSV de estudiantes.

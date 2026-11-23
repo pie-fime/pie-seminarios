@@ -153,7 +153,7 @@ window.Reports = (() => {
     });
   }
   function reviewerName(name) {
-    return /^(dr|dra)\.?\s/i.test(name)||/^Revisor \d+$/i.test(name)?name:`Dr. ${name}`;
+    return name.replace(/^dr\.?\s+/i,'');
   }
   function completeFinal(data,studentId) {
     const reviewers=reviewersFor(data,studentId);

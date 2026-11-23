@@ -132,6 +132,7 @@ Escenarios manuales mínimos:
 - Abrir `tests/profile.html` en un navegador para comprobar las pruebas de perfil con datos simulados.
 - Abrir `tests/csv-import.html` en un navegador para probar la importación de estudiantes con matrículas numéricas y de texto.
 - Abrir `tests/assignments.html` en un navegador para probar asignaciones parciales y protección de evaluaciones enviadas.
+- Abrir `tests/reports.html` en un navegador para comprobar los nombres en los comentarios del reporte.
 - Inicio de sesión de administrador y evaluador.
 - Actualización del perfil propio y cambio de contraseña con verificación de la contraseña actual.
 - Registro e importación CSV de estudiantes.

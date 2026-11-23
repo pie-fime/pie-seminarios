@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Pruebas de reportes</title></head>
+<body>
+<pre id="result">Ejecutando pruebas...</pre>
+<script src="../js/calculations.js"></script>
+<script src="../js/reports.js"></script>
+<script>
+  try{
+    const data={
+      period:{id:'P1',name:'Periodo'},
+      students:[{id:'S1',matricula:'100',name:'Estudiante',period:'P1'}],
+      evaluators:[{id:'E1',name:'Marta Ejemplo'},{id:'E2',name:'Dr. Luis Ejemplo'},{id:'E3',name:'Dra. Ana Ejemplo'}],
+      assignments:['E1','E2','E3'].map(evaluator=>({student:'S1',evaluator,state:'Activa'})),
+      evaluations:['E1','E2','E3'].map(evaluator=>({student:'S1',evaluator,individual:90,observations:'Comentario'})),
+      rubric:[]
+    };
+    const report=Reports.createReport(data,'student',{studentId:'S1'});
+    const doc=new DOMParser().parseFromString(report.html,'text/html');
+    const comments=doc.querySelector('.report-comments').textContent;
+    const expected=['Marta Ejemplo','Luis Ejemplo','Dra. Ana Ejemplo'];
+    const actual=report.csvRows.slice(-3).map(row=>row[0]);
+    if(expected.some((name,index)=>!comments.includes(`${name}: Comentario`)||actual[index]!==name))
+      throw new Error('Los nombres de los comentarios no coinciden en el reporte y el CSV');
+    if(comments.includes('Dr. Luis Ejemplo')||comments.includes('Dr. Marta Ejemplo'))
+      throw new Error('El reporte añadió o conservó Dr. en los comentarios');
+    if(!doc.querySelector('thead').textContent.includes('Dr. Luis Ejemplo'))
+      throw new Error('Se modificó el nombre en la tabla de criterios');
+    document.getElementById('result').textContent='Todas las pruebas de reportes pasaron.';
+  }catch(error){document.getElementById('result').textContent='Error: '+error.message;console.error(error);}
+</script>
+</body>
+</html>

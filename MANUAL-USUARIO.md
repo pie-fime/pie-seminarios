@@ -131,4 +131,4 @@ Al día siguiente aparece **Consultar** y la evaluación queda en modo de lectur
 | No puedo importar un CSV | Revisa la plantilla, los campos requeridos, los duplicados y los errores indicados. Corrige el archivo y vuelve a seleccionarlo. |
 | Los cambios de demo no aparecen en otro dispositivo | Es normal: el demo guarda los datos solo en el navegador donde se capturaron. |
 
-Para la configuración técnica de Google Sheets y Apps Script, consulta el [README](README.md).
+Para la configuración técnica de Google Sheets y Apps Script, consulta [Arquitectura e Instalación](ARQUITECTURA-INSTALACION.md).

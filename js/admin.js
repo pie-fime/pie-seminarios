@@ -96,10 +96,10 @@ window.Admin = (() => {
     const periods=data.periods||[data.period].filter(p=>p?.id);
     const rows=periods.map(p=>`<tr>
       <td><input type="checkbox" name="selectedPeriod" value="${escapeHtml(p.id)}" aria-label="Seleccionar ${escapeHtml(p.name)}"></td>
-      <td>${escapeHtml(p.id)}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(formatDate(p.start))}</td><td>${escapeHtml(formatDate(p.end))}</td><td><span class="badge ${p.state==='Activo'?'ok':'neutral'}">${escapeHtml(p.state)}</span></td>
+      <td>${escapeHtml(p.name)}</td><td>${escapeHtml(formatDate(p.start))}</td><td>${escapeHtml(formatDate(p.end))}</td><td><span class="badge ${p.state==='Activo'?'ok':'neutral'}">${escapeHtml(p.state)}</span></td>
     </tr>`).join('');
     return `<section class="panel"><div class="panel-header"><h2>Periodos</h2><div class="button-group"><button class="button secondary" id="activatePeriod">Activar periodo</button><button class="button primary" id="newPeriod">Nuevo periodo</button><button class="button danger" id="deletePeriod" disabled>Borrar periodo</button></div></div>
-      ${table([`<input type="checkbox" id="selectAllPeriods" aria-label="Seleccionar todos los periodos" ${periods.length?'':'disabled'}>`,'ID','Nombre','Inicio','Fin','Estado'],rows||'<tr><td colspan="6">No hay periodos registrados.</td></tr>')}</section>`;
+      ${table([`<input type="checkbox" id="selectAllPeriods" aria-label="Seleccionar todos los periodos" ${periods.length?'':'disabled'}>`,'Nombre','Inicio','Fin','Estado'],rows||'<tr><td colspan="5">No hay periodos registrados.</td></tr>')}</section>`;
   }
   function administrators(items) {
     const rows=items.map(a=>`<tr><td>${escapeHtml(a.name)}</td><td>${escapeHtml(a.username)}</td><td>${escapeHtml(a.state)}</td></tr>`).join('');

@@ -61,8 +61,8 @@ window.Reports = (() => {
     const rubric=evaluations.find(e=>e?.rubric)?.rubric||data.rubric;
     const rows=rubric.map(c=>`<tr><th scope="row">${escapeHtml(c.name)}</th>${evaluations.map(e=>`<td>${scoreFor(e,c.id)}</td>`).join('')}</tr>`).join('');
     const final=completeFinal(data,student.id);
-    const reviewerComments=reviewers.map(r=>({name:reviewerName(r.name),text:String(r.evaluation?.observations||'').trim()})).filter(r=>r.text);
-    const comments=reviewerComments.map(r=>`${r.name}: ${r.text}`).join(' ');
+    const reviewerComments=reviewers.map((r,i)=>({label:`R${i+1}`,name:reviewerName(r.name),text:String(r.evaluation?.observations||'').trim()})).filter(r=>r.text);
+    const comments=reviewerComments.map(r=>`${r.label}: ${r.text}`).join(' ');
     const html=`<article class="panel printable-report">
       ${reportHeading('Reporte individual del alumno',periodName(data,student.period||data.period?.id))}
       <dl class="report-meta">

@@ -19,10 +19,11 @@
     const doc=new DOMParser().parseFromString(report.html,'text/html');
     const comments=doc.querySelector('.report-comments').textContent;
     const commentsSection=doc.querySelector('.report-comments-section');
-    const expected=['Marta Ejemplo','Luis Ejemplo','Dra. Ana Ejemplo'];
+    const expected=['R1: Comentario','R2: Comentario','R3: Comentario'];
     const actual=report.csvRows.slice(-3).map(row=>row[0]);
-    if(expected.some((name,index)=>!comments.includes(`${name}: Comentario`)||actual[index]!==name))
-      throw new Error('Los nombres de los comentarios no coinciden en el reporte y el CSV');
+    if(expected.some((comment,index)=>!comments.includes(comment))||
+       actual.join('|')!=='Marta Ejemplo|Luis Ejemplo|Dra. Ana Ejemplo')
+      throw new Error('Las etiquetas de comentarios o los nombres del CSV son incorrectos');
     if(comments.includes('\n'))throw new Error('Los comentarios deben mostrarse seguidos, sin saltos manuales de línea');
     if(doc.querySelector('.report-meta').textContent.includes('Evaluaciones recibidas'))
       throw new Error('El reporte individual no debe mostrar el conteo de evaluaciones');
@@ -31,6 +32,10 @@
     if(!doc.querySelector('thead').textContent.includes('Dr. Luis Ejemplo'))
       throw new Error('Se modificó el nombre en la tabla de criterios');
     if(doc.querySelector('tfoot'))throw new Error('El reporte no debe incluir una fila de promedios por revisor');
+    const sparse=Reports.createReport({...data,evaluations:data.evaluations.map((evaluation,index)=>index===1?{...evaluation,observations:''}:evaluation)},'student',{studentId:'S1'});
+    const sparseComments=new DOMParser().parseFromString(sparse.html,'text/html').querySelector('.report-comments').textContent;
+    if(sparseComments!=='R1: Comentario R3: Comentario')
+      throw new Error('Las etiquetas deben conservar el número de revisor cuando falta un comentario');
     const final=doc.querySelector('.report-final');
     if(!final.textContent.includes('63.20 / 100')||!commentsSection.querySelector('h3')||
        commentsSection.querySelector('h3').textContent!=='Comentarios de los revisores'||

@@ -1,4 +1,4 @@
-# SEMI-TESIS
+# PIE-SEMI-EVAL
 
 Aplicación web responsiva para administrar y evaluar seminarios de avance de tesis de la Maestría en Ingeniería Eléctrica.
 

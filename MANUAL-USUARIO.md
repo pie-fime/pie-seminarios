@@ -1,14 +1,12 @@
-# Manual de usuario de SEMI-TESIS
+# Manual de usuario de PIE-SEMI-EVAL
 
 ## 1. ¿Para qué sirve?
 
-SEMI-TESIS permite organizar y evaluar seminarios de avance de tesis. El **administrador** registra periodos, estudiantes y evaluadores, asigna revisores y genera reportes. El **evaluador** consulta sus estudiantes asignados y captura sus evaluaciones.
-
-> **Aviso de seguridad:** utiliza únicamente datos ficticios hasta corregir y revisar las limitaciones de seguridad conocidas. Un evaluador autenticado puede recibir información de evaluaciones de otros revisores, aunque no se muestre en la interfaz.
+PIE-SEMI-EVAL permite organizar y evaluar seminarios de avance de tesis. El **administrador** registra periodos, estudiantes y evaluadores, asigna revisores y genera reportes. El **evaluador** consulta sus estudiantes asignados y captura sus evaluaciones.
 
 ## 2. Acceso y navegación
 
-1. Abre [SEMI-TESIS](https://pie-fime.github.io/pie-seminarios/) en un navegador.
+1. Abre [PIE-SEMI-EVAL](https://pie-fime.github.io/pie-seminarios/) en un navegador.
 2. Escribe el **Usuario** y la **Contraseña** proporcionados por el administrador.
 3. Pulsa **Iniciar sesión**.
 4. Usa el menú lateral para ir a la sección deseada. En celular, pulsa **☰** para abrirlo y **×** para cerrarlo.

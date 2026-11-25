@@ -125,8 +125,11 @@ window.Admin = (() => {
       <div class="full"><button class="button primary" type="submit">Guardar periodo</button></div>
     </form>`;
   }
+  function directorNames(value) {
+    return String(value??'').split('//').map(name=>name.trim()).filter(Boolean);
+  }
   function students(data,state) {
-    const directors=[...new Set(data.students.map(s=>s.director).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    const directors=[...new Set(data.students.flatMap(s=>directorNames(s.director)))].sort((a,b)=>a.localeCompare(b,'es'));
     const periods=data.periods||[data.period].filter(Boolean);
     const directorOptions=directors.map(d=>`<option value="${escapeHtml(d)}" ${state.director===d?'selected':''}>${escapeHtml(d)}</option>`).join('');
     const periodOptions=periods.map(p=>`<option value="${escapeHtml(p.id)}" ${state.period===p.id?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
@@ -190,7 +193,7 @@ window.Admin = (() => {
     const query=(state.search||'').trim().toLocaleLowerCase('es');
     return items.filter(item=>{
       const matchesSearch=!query||searchFields.some(key=>String(item[key]||'').toLocaleLowerCase('es').includes(query));
-      const matchesDirector=!state.director||item.director===state.director;
+      const matchesDirector=!state.director||directorNames(item.director).includes(state.director);
       const matchesPeriod=!state.period||item.period===state.period;
       const matchesStatus=!state.status||item.state===state.status;
       return matchesSearch&&matchesDirector&&matchesPeriod&&matchesStatus;

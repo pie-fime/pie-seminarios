@@ -48,7 +48,7 @@ Solo puede haber un periodo activo a la vez. Para borrar periodos, selecciona su
 
 El programa es obligatorio y debe ser **MCIE** o **DIE**. Puedes modificar un registro con **Editar**. Usa el campo de búsqueda y los filtros de director y periodo para encontrar estudiantes; pulsa los encabezados de la tabla para ordenar.
 
-Si hay codirección, escribe los nombres del director y codirector juntos en el campo **Director de tesis**.
+Si hay codirección, escribe los nombres del director y codirector en el campo **Director de tesis**, separados por `//`. El filtro mostrará cada nombre por separado.
 
 ### 3.4. Registrar evaluadores
 

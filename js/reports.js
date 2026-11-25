@@ -215,7 +215,7 @@ window.Reports = (() => {
     return data.periods?.find(p=>p.id===periodId)?.name||data.period?.name||periodId||'Sin generación';
   }
   function reportHeading(title,cohort) {
-    return `<header class="report-heading"><p class="eyebrow">Maestría en Ingeniería Eléctrica</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(cohort)}</p></header>`;
+    return `<header class="report-heading"><p class="eyebrow">Posgrado en Ingeniería Eléctrica</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(cohort)}</p></header>`;
   }
   function meta(label,value) {
     return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value||'—')}</dd></div>`;

@@ -386,7 +386,7 @@ window.App = (() => {
     const records=source.filter(item=>selected.has(item.id));
     if(isStudents){
       Csv.download(
-        [['Matrícula','Nombre','Programa','Semestre','Título de tesis','Director de tesis','Generación / cohorte'],...records.map(s=>[s.matricula,s.name,s.program||'',s.semester,s.thesis,s.director,periodName(directoryData,s.period)])],
+        [['Matrícula','Nombre','Programa','Semestre','Título de tesis','Director de tesis','Periodo'],...records.map(s=>[s.matricula,s.name,s.program||'',s.semester,s.thesis,s.director,periodName(directoryData,s.period)])],
         'estudiantes.csv'
       );
     }else{
@@ -482,8 +482,8 @@ window.App = (() => {
     const config=type==='students'?{
       title:'Importar estudiantes desde CSV',
       required:['matricula','nombre','programa','semestre','titulodetesis','directordetesis'],
-      header:'Matrícula,Nombre,Programa,Semestre,Título de tesis,Director de tesis,Generación / cohorte',
-      description:'Columnas requeridas: matrícula, nombre, programa (MCIE o DIE), semestre, título de tesis y director de tesis. La generación/cohorte es opcional; si se omite, se usa el periodo activo.',
+      header:'Matrícula,Nombre,Programa,Semestre,Título de tesis,Director de tesis,Periodo',
+      description:'Columnas requeridas: matrícula, nombre, programa (MCIE o DIE), semestre, título de tesis y director de tesis. El periodo es opcional; si se omite, se usa el periodo activo.',
       action:'Importar estudiantes'
     }:{
       title:'Importar evaluadores desde CSV',
@@ -519,6 +519,10 @@ window.App = (() => {
         const missing=config.required.filter(key=>indexes[key]===undefined);
         if(missing.length)throw new Error(`Faltan columnas requeridas: ${missing.join(', ')}.`);
         rows.slice(1).forEach((row,index)=>{
+          if(row.length>headers.length){
+            errors.push(`Fila ${index+2}: hay más columnas que encabezados. Encierra entre comillas los valores que contienen el separador.`);
+            return;
+          }
           const parsed=parseImportRow(type,row,indexes,index+2);
           if(parsed.error)errors.push(parsed.error);
           else records.push(parsed.record);
@@ -626,8 +630,8 @@ window.App = (() => {
     const updateFilters=()=>{
       studentFilter.classList.toggle('hidden',type.value!=='student');
       evaluatorFilter.classList.toggle('hidden',type.value!=='evaluator');
-      semesterFilter.classList.toggle('hidden',type.value==='student');
-      programFilter.classList.toggle('hidden',type.value==='student');
+      semesterFilter.classList.toggle('hidden',!['generation','evaluator'].includes(type.value));
+      programFilter.classList.toggle('hidden',!['generation','evaluator'].includes(type.value));
     };
     type.addEventListener('change',updateFilters);
     updateFilters();

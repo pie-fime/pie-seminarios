@@ -67,6 +67,28 @@
     const workspace=new DOMParser().parseFromString(Reports.workspace(directory),'text/html');
     if(!workspace.querySelector('#reportSemester option[value="2"]')||!workspace.querySelector('#reportProgram option[value="DIE"]'))
       throw new Error('Faltan opciones de semestre o programa');
+    if(!workspace.querySelector('#reportType option[value="assignments"]'))
+      throw new Error('Falta el reporte de asignaciones');
+    const assignmentsData={...directory,students:[
+      {...directory.students[0],thesis:'Tesis <prueba>',director:'Director & asesor'},
+      {...directory.students[2],program:''}
+    ],assignments:[...directory.assignments,{student:'S1',evaluator:'E2',state:'Inactiva'}]};
+    const assignmentReport=Reports.createReport(assignmentsData,'assignments');
+    const assignmentDoc=new DOMParser().parseFromString(assignmentReport.html,'text/html');
+    const assignmentHeaders=[...assignmentDoc.querySelectorAll('thead th')].map(cell=>cell.textContent);
+    const assignmentRows=[...assignmentDoc.querySelectorAll('tbody tr')];
+    if(assignmentHeaders.join('|')!=='Matrícula|Estudiante|Programa|Título de tesis|Director|Evaluadores'||
+       assignmentRows.length!==2||assignmentRows[0].cells[3].textContent!=='Tesis <prueba>'||
+       assignmentRows[0].cells[3].querySelector('prueba')||assignmentRows[0].cells[4].textContent!=='Director & asesor'||
+       assignmentRows[0].cells[5].textContent!=='Marta EjemploDr. Luis EjemploDra. Ana Ejemplo'||
+       assignmentRows[1].cells[2].textContent!=='Sin asignar'||assignmentRows[1].cells[5].textContent!=='Sin asignar')
+      throw new Error('El reporte de asignaciones tiene datos o columnas incorrectos');
+    if(assignmentReport.csvRows[2].join('|')!==assignmentHeaders.join('|')||
+       assignmentReport.csvRows[3][5]!=='Marta Ejemplo\nDr. Luis Ejemplo\nDra. Ana Ejemplo')
+      throw new Error('El CSV de asignaciones no coincide con el reporte');
+    const emptyAssignments=new DOMParser().parseFromString(Reports.createReport({...assignmentsData,students:[]},'assignments').html,'text/html');
+    if(emptyAssignments.querySelector('tbody td').colSpan!==6||!emptyAssignments.querySelector('tbody').textContent.includes('No hay estudiantes'))
+      throw new Error('El reporte de asignaciones no muestra el periodo vacío');
     const periodReport=Reports.createReport(directory,'generation',{semester:'2',program:'MCIE'});
     const periodDoc=new DOMParser().parseFromString(periodReport.html,'text/html');
     const periodHeaders=[...periodDoc.querySelectorAll('thead th')].map(cell=>cell.textContent);

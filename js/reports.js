@@ -20,9 +20,10 @@ window.Reports = (() => {
       <div class="report-filter-grid">
         <label>Tipo de reporte
           <select id="reportType">
-            <option value="student">Por alumno</option>
-            <option value="generation">Por periodo de evaluación</option>
-            <option value="evaluator">Por revisor</option>
+            <option value="student">Evaluaciones por alumno</option>
+            <option value="generation">Evaluaciones por periodo</option>
+            <option value="evaluator">Evaluaciones por revisor</option>
+            <option value="assignments">Asignaciones por periodo</option>
           </select>
         </label>
         <label>Periodo de evaluación
@@ -50,7 +51,25 @@ window.Reports = (() => {
     if (type==='student') return studentReport(data,selection.studentId);
     if (type==='generation') return generationReport(data,selection);
     if (type==='evaluator') return evaluatorReport(data,selection.evaluatorId,selection);
+    if (type==='assignments') return assignmentsReport(data);
     throw new Error('Tipo de reporte desconocido');
+  }
+
+  function assignmentsReport(data) {
+    const headers=['Matrícula','Estudiante','Programa','Título de tesis','Director','Evaluadores'];
+    const rows=data.students.map(student=>{
+      const names=data.assignments.filter(a=>a.student===student.id&&a.state==='Activa')
+        .map(a=>data.evaluators.find(e=>e.id===a.evaluator)?.name||a.evaluator);
+      return [student.matricula,student.name,student.program||'Sin asignar',student.thesis,student.director,names.join('\n')||'Sin asignar'];
+    });
+    const html=`<article class="panel printable-report">
+      ${reportHeading('Asignaciones por periodo',periodName(data))}
+      <div class="table-wrap"><table class="report-table">
+        <thead><tr>${headers.map(header=>`<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(row=>`<tr>${row.map((value,index)=>`<td>${index===5?escapeHtml(value).replace(/\n/g,'<br>'):escapeHtml(value)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="6">No hay estudiantes en este periodo.</td></tr>'}</tbody>
+      </table></div>
+    </article>`;
+    return {html,csvRows:[['Asignaciones por periodo',periodName(data)],[],headers,...rows],filename:`reporte-asignaciones-${filePart(periodName(data))}.csv`};
   }
 
   function studentReport(data, studentId) {

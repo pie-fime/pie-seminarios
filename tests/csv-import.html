@@ -39,16 +39,30 @@
       await waitFor(()=>doc.querySelector('[data-view="students"]'));
       const data=await w.Admin.load();
       data.students[0].matricula=12345;
+      data.students[0].program='MCIE';
+      data.students[0].thesis='Control, "análisis"\ny diseño';
+      data.students[0].director='Pérez, Ana';
       data.students[1].matricula='AbC9';
       data.students[2].matricula=98765;
       data.students[2].period='OTRA-COHORTE';
+      data.periods=[data.period,{id:'OTRA-COHORTE',name:'Otro periodo',state:'Inactivo'}];
       w.Admin.saveDemo(data);
       doc.querySelector('[data-view="students"]').click();
       await waitFor(()=>doc.getElementById('importStudents'));
+      let downloaded,blob;
+      w.URL.createObjectURL=value=>{blob=value;return 'blob:csv-test';};
+      w.URL.revokeObjectURL=()=>{};
+      w.HTMLAnchorElement.prototype.click=function(){downloaded={blob,filename:this.download};};
+      doc.querySelector('#studentRows .row-select').click();
+      doc.getElementById('exportStudents').click();
+      const exported=await downloaded.blob.text(),exportedRows=w.Csv.parse(exported);
+      assert(downloaded.filename==='estudiantes.csv'&&exportedRows[0][6]==='Periodo','La exportación no usa el encabezado Periodo');
+      assert(exported.includes('"Control, ""análisis""\ny diseño"')&&exportedRows[1][4]===data.students[0].thesis&&exportedRows[1][5]===data.students[0].director,'La exportación no conserva comas, comillas y saltos de línea');
       doc.getElementById('importStudents').click();
-      async function validate(matricula){
+      doc.getElementById('downloadCsvTemplate').click();
+      assert(downloaded.filename==='students-plantilla.csv'&&w.Csv.parse(await downloaded.blob.text())[0][6]==='Periodo','La plantilla no usa el encabezado Periodo');
+      async function validateCsv(csv){
         const input=doc.getElementById('csvImportFile'),transfer=new w.DataTransfer();
-        const csv=`Matrícula,Nombre,Programa,Semestre,Título de tesis,Director de tesis\n${matricula},Prueba,MCIE,1,Tesis,Director`;
         transfer.items.add(new w.File([csv],'prueba.csv',{type:'text/csv'}));
         input.files=transfer.files;
         doc.getElementById('csvImportStatus').textContent='Procesando...';
@@ -56,16 +70,33 @@
         await waitFor(()=>doc.getElementById('csvImportStatus').textContent!=='Procesando...');
         return {enabled:!doc.getElementById('confirmCsvImport').disabled,error:doc.getElementById('csvImportErrors').textContent};
       }
+      async function validate(matricula,periodHeader='',periodValue=''){
+        return validateCsv(`Matrícula,Nombre,Programa,Semestre,Título de tesis,Director de tesis${periodHeader?','+periodHeader:''}\n${matricula},Prueba,MCIE,1,Tesis,Director${periodHeader?','+periodValue:''}`);
+      }
+      const invalid=await validateCsv('Matrícula,Nombre,Programa,Semestre,Título de tesis,Director de tesis,Periodo\n998876,Prueba,MCIE,1,Tesis, con coma,Director,Otro periodo');
+      assert(!invalid.enabled&&invalid.error.includes('más columnas')&&invalid.error.includes('comillas'),'No se detectó una coma sin escapar');
       assert((await validate('998877')).enabled,'Se rechazó una matrícula nueva');
       const numeric=await validate('12345');
       assert(!numeric.enabled&&numeric.error.includes('ya existe'),'No se detectó una matrícula numérica duplicada');
       const text=await validate('aBc9');
       assert(!text.enabled&&text.error.includes('ya existe'),'No se detectó una matrícula de texto duplicada');
       assert((await validate('98765')).enabled,'Se rechazó una matrícula de otra cohorte');
-      await validate('998877');
+      for(const header of ['Generación / cohorte','Periodo']){
+        const unknown=await validate('998877',header,'Periodo inexistente');
+        assert(!unknown.enabled&&unknown.error.includes('Periodo inexistente'),`No se reconoció el encabezado ${header}`);
+        assert((await validate('998877',header,'Otro periodo')).enabled,`Se rechazó el encabezado ${header}`);
+      }
       doc.getElementById('confirmCsvImport').click();
       await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
-      assert((await w.Admin.load()).students.some(student=>student.matricula==='998877'),'No se guardó el estudiante importado');
+      assert((await w.Admin.load()).students.some(student=>student.matricula==='998877'&&student.period==='OTRA-COHORTE'),'No se guardó el estudiante con el periodo indicado');
+      doc.querySelector('[data-view="students"]').click();
+      await waitFor(()=>doc.getElementById('importStudents'));
+      doc.getElementById('importStudents').click();
+      assert((await validateCsv(exported.replace('12345','998878'))).enabled,'Se rechazó el CSV exportado con comas');
+      doc.getElementById('confirmCsvImport').click();
+      await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
+      const imported=(await w.Admin.load()).students.find(student=>student.matricula==='998878');
+      assert(imported?.thesis===data.students[0].thesis&&imported.director===data.students[0].director,'La importación alteró los valores con comas o comillas');
       document.getElementById('result').textContent='Todas las pruebas de importación CSV pasaron.';
     }catch(error){document.getElementById('result').textContent='Error: '+error.message;console.error(error);}
   };

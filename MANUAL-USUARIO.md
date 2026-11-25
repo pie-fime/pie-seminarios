@@ -44,9 +44,9 @@ Solo puede haber un periodo activo a la vez. Para borrar periodos, selecciona su
 
 1. Entra en **Estudiantes** y pulsa **Nuevo**.
 2. Completa matrícula, nombre, programa, semestre, director y título de tesis.
-3. Selecciona la **Generación / cohorte** y pulsa **Guardar estudiante**.
+3. Selecciona el **Periodo** y pulsa **Guardar estudiante**.
 
-El programa es obligatorio y debe ser **MCIE** o **DIE**. Puedes modificar un registro con **Editar**. Usa el campo de búsqueda y los filtros de director y cohorte para encontrar estudiantes; pulsa los encabezados de la tabla para ordenar.
+El programa es obligatorio y debe ser **MCIE** o **DIE**. Puedes modificar un registro con **Editar**. Usa el campo de búsqueda y los filtros de director y periodo para encontrar estudiantes; pulsa los encabezados de la tabla para ordenar.
 
 ### 3.4. Registrar evaluadores
 
@@ -64,7 +64,9 @@ Desde **Mi perfil**, cada evaluador puede actualizar su nombre, correo, usuario 
 4. En la aplicación, pulsa **Seleccionar archivo CSV**.
 5. Corrige los errores que se muestren y vuelve a seleccionar el archivo. Cuando no haya errores, pulsa **Importar estudiantes** o **Importar evaluadores**.
 
-Para estudiantes se requieren matrícula, nombre, programa, semestre, título y director de tesis. La generación o cohorte es opcional: si se omite, se usa el periodo activo.
+Si editas el CSV como texto, encierra entre comillas dobles los valores que contienen el separador; por ejemplo, `"Control, análisis y diseño"`. Dentro de un valor entre comillas, escribe cada comilla doble dos veces. Las exportaciones lo hacen automáticamente.
+
+Para estudiantes se requieren matrícula, nombre, programa, semestre, título y director de tesis. La columna **Periodo** es opcional: si se omite, se usa el periodo activo. También se aceptan CSV anteriores con el encabezado **Generación / cohorte**.
 
 Para evaluadores se requieren nombre, correo, usuario y contraseña temporal. **El CSV contiene contraseñas en texto legible**: mantenlo protegido, no lo subas a GitHub y elimínalo de forma segura cuando ya no lo necesites.
 
@@ -77,7 +79,7 @@ Las contraseñas no se incluyen en la exportación de evaluadores. El borrado se
 ### 3.7. Asignar revisores
 
 1. Verifica que esté activo el periodo correspondiente y que existan el estudiante y los evaluadores.
-2. Entra en **Asignaciones** y pulsa **Asignar** en la fila del estudiante.
+2. Entra en **Asignaciones**, consulta el título de tesis y el director en la fila del estudiante y pulsa **Asignar**.
 3. Marca hasta **tres evaluadores diferentes** y pulsa **Guardar asignación**. Puedes completar la asignación más adelante o desmarcar todos para quitarla.
 
 Los evaluadores que ya enviaron su evaluación no pueden retirarse. Para obtener el promedio final se requieren tres evaluaciones. La lista muestra únicamente estudiantes del periodo activo; si está vacía, revisa su cohorte y el periodo activo.
@@ -92,6 +94,8 @@ En **Administradores**, pulsa **Nuevo administrador**. Captura nombre, usuario o
 2. Selecciona el periodo y, cuando corresponda, el alumno o revisor. En los reportes por periodo y por revisor puedes filtrar por semestre y programa.
 3. Pulsa **Visualizar reporte**.
 4. Al final del reporte, usa **Descargar CSV** o **Imprimir / Guardar PDF**. Para obtener un PDF, selecciona «Guardar como PDF» en el diálogo de impresión del navegador.
+
+El reporte **Asignaciones por periodo** muestra matrícula, estudiante, programa, título de tesis, director y evaluadores asignados.
 
 El reporte individual presenta los criterios, las calificaciones y observaciones de los revisores. Debajo de la tabla aparece la calificación final, que permanece **Pendiente** hasta contar con las tres evaluaciones. Protege los reportes descargados y compártelos solo con personas autorizadas.
 

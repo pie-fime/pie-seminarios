@@ -134,7 +134,7 @@ window.Admin = (() => {
       <div class="directory-toolbar">
         <label>Buscar<input id="studentSearch" value="${escapeHtml(state.search)}" placeholder="Matrícula, nombre o tesis"></label>
         <label>Director<select id="studentDirector"><option value="">Todos los directores</option>${directorOptions}</select></label>
-        <label>Generación / cohorte<select id="studentPeriod"><option value="">Todas las cohortes</option>${periodOptions}</select></label>
+        <label>Periodo<select id="studentPeriod"><option value="">Todos los periodos</option>${periodOptions}</select></label>
         <button class="button secondary" id="importStudents">Importar CSV</button>
         <button class="button secondary" id="exportStudents" ${state.selected.size?'':'disabled'}>Exportar CSV</button>
         <button class="button primary" id="newStudent">Nuevo</button>
@@ -145,7 +145,7 @@ window.Admin = (() => {
         <th><input type="checkbox" id="selectAllStudents" aria-label="Seleccionar estudiantes visibles"></th>
         ${sortHeader('matricula','Matrícula',state)}${sortHeader('name','Nombre',state)}
         ${sortHeader('program','Programa',state)}${sortHeader('semester','Semestre',state)}${sortHeader('thesis','Título de tesis',state)}${sortHeader('director','Director',state)}
-        ${sortHeader('period','Cohorte',state)}<th>Estado</th><th>Acciones</th>
+        ${sortHeader('period','Periodo',state)}<th>Estado</th><th>Acciones</th>
       </tr></thead><tbody id="studentRows">${studentRows(data,state)}</tbody></table></div>
     </section>`;
   }
@@ -225,9 +225,9 @@ window.Admin = (() => {
       const ids=data.assignments.filter(a=>a.student===s.id&&a.state==='Activa').map(a=>a.evaluator);
       const names=ids.map(id=>escapeHtml(data.evaluators.find(e=>e.id===id)?.name||id)).join('<br>');
       const completed=data.evaluations.filter(e=>e.student===s.id&&(e.round||1)===2).length;
-      return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${names||'Sin asignar'}</td><td>${completed} de 3</td><td><button class="text-button" data-edit-assignment="${escapeHtml(s.id)}">Asignar</button></td></tr>`;
-    }).join('')||`<tr><td colspan="5" class="empty-row">${data.period?.id?'No hay estudiantes en el periodo activo. Revisa la cohorte de los estudiantes o activa el periodo correspondiente.':'No hay un periodo activo. Activa un periodo para asignar evaluadores.'}</td></tr>`;
-    return `<section class="panel"><div class="panel-header"><h2>Asignaciones</h2></div>${table(['Matrícula','Estudiante','Evaluadores','Avance','Acciones'],byStudent)}</section>`;
+      return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.thesis)}</td><td>${escapeHtml(s.director)}</td><td>${names||'Sin asignar'}</td><td>${completed} de 3</td><td><button class="text-button" data-edit-assignment="${escapeHtml(s.id)}">Asignar</button></td></tr>`;
+    }).join('')||`<tr><td colspan="7" class="empty-row">${data.period?.id?'No hay estudiantes en el periodo activo. Revisa la cohorte de los estudiantes o activa el periodo correspondiente.':'No hay un periodo activo. Activa un periodo para asignar evaluadores.'}</td></tr>`;
+    return `<section class="panel"><div class="panel-header"><h2>Asignaciones</h2></div>${table(['Matrícula','Estudiante','Título de tesis','Director','Evaluadores','Avance','Acciones'],byStudent)}</section>`;
   }
   function studentForm(data,student={}) {
     const periods=data.periods||[data.period].filter(Boolean);
@@ -238,7 +238,7 @@ window.Admin = (() => {
       <label>Programa<select name="program" required><option value="">Selecciona un programa</option><option value="MCIE" ${student.program==='MCIE'?'selected':''}>MCIE — Maestría en Ciencias de la Ingeniería Eléctrica</option><option value="DIE" ${student.program==='DIE'?'selected':''}>DIE — Doctorado en Ingeniería Eléctrica</option></select></label>
       ${field('Semestre','semester',student.semester||'',true)}${field('Director de tesis','director',student.director||'',true)}
       ${field('Título de tesis','thesis',student.thesis||'',true,'full')}
-      <label class="full">Generación / cohorte<select name="periodId" required>${periods.map(p=>`<option value="${escapeHtml(p.id)}" ${p.id===selectedPeriod?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></label>
+      <label class="full">Periodo<select name="periodId" required>${periods.map(p=>`<option value="${escapeHtml(p.id)}" ${p.id===selectedPeriod?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></label>
       <div class="full"><button class="button primary" type="submit">Guardar estudiante</button></div></form>`;
   }
   function evaluatorForm(evaluator={}) {

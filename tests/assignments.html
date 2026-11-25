@@ -39,13 +39,16 @@
       doc.getElementById('loginForm').requestSubmit();
       await waitFor(()=>doc.querySelector('[data-view="assignments"]'));
       const data=await w.Admin.load();
-      data.students.push({id:'EST-004',matricula:'999',name:'Estudiante nuevo',period:data.period.id});
+      data.students.push({id:'EST-004',matricula:'999',name:'Estudiante nuevo',thesis:'Tesis <prueba>',director:'Director & asesor',period:data.period.id});
       data.evaluators.push({id:'EV-004',name:'Evaluador nuevo',username:'nuevo',state:'Activo'});
       data.assignments.push({id:'AS-10',student:'EST-004',evaluator:'EV-003',state:'Inactiva'});
       w.Admin.saveDemo(data);
       doc.querySelector('[data-view="assignments"]').click();
       await waitFor(()=>doc.querySelector('[data-edit-assignment="EST-004"]'));
       const row=doc.querySelector('[data-edit-assignment="EST-004"]').closest('tr');
+      const headings=[...doc.querySelectorAll('#content table th')].map(th=>th.textContent);
+      assert(headings.join('|')==='Matrícula|Estudiante|Título de tesis|Director|Evaluadores|Avance|Acciones','Las columnas de asignaciones no están en el orden esperado');
+      assert(row.cells[2].textContent==='Tesis <prueba>'&&row.cells[3].textContent==='Director & asesor'&&!row.cells[2].querySelector('prueba'),'No se muestran correctamente el título y el director');
       assert(row.textContent.includes('Sin asignar'),'Se mostró una asignación inactiva');
       row.querySelector('button').click();
       const checkbox=id=>doc.querySelector(`#assignmentForm [value="${id}"]`);
@@ -71,6 +74,7 @@
       saved.students=[];w.Admin.saveDemo(saved);
       doc.querySelector('[data-view="assignments"]').click();
       await waitFor(()=>doc.getElementById('content').textContent.includes('No hay estudiantes en el periodo activo'));
+      assert(doc.querySelector('#content .empty-row').colSpan===7,'El mensaje vacío no abarca todas las columnas');
 
       const headers=['Estado','ID_Evaluador','ID_Periodo','ID_Asignacion','Fecha_Asignacion','ID_Estudiante'];
       const rows=[headers];

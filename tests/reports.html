@@ -17,6 +17,9 @@
     };
     const report=Reports.createReport(data,'student',{studentId:'S1'});
     const doc=new DOMParser().parseFromString(report.html,'text/html');
+    if(![...doc.querySelectorAll('.report-meta dt')].some(item=>item.textContent==='Director // Codirector')||
+       !report.csvRows.some(row=>row[0]==='Director // Codirector'))
+      throw new Error('El reporte individual no identifica al director y codirector');
     const comments=doc.querySelector('.report-comments').textContent;
     const commentsSection=doc.querySelector('.report-comments-section');
     const expected=['R1: Comentario','R2: Comentario','R3: Comentario'];
@@ -77,7 +80,7 @@
     const assignmentDoc=new DOMParser().parseFromString(assignmentReport.html,'text/html');
     const assignmentHeaders=[...assignmentDoc.querySelectorAll('thead th')].map(cell=>cell.textContent);
     const assignmentRows=[...assignmentDoc.querySelectorAll('tbody tr')];
-    if(assignmentHeaders.join('|')!=='Matrícula|Estudiante|Programa|Título de tesis|Director|Evaluadores'||
+    if(assignmentHeaders.join('|')!=='Matrícula|Estudiante|Programa|Título de tesis|Director // Codirector|Evaluadores'||
        assignmentRows.length!==2||assignmentRows[0].cells[3].textContent!=='Tesis <prueba>'||
        assignmentRows[0].cells[3].querySelector('prueba')||assignmentRows[0].cells[4].textContent!=='Director & asesor'||
        assignmentRows[0].cells[5].textContent!=='Marta EjemploDr. Luis EjemploDra. Ana Ejemplo'||

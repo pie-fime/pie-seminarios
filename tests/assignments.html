@@ -47,7 +47,7 @@
       await waitFor(()=>doc.querySelector('[data-edit-assignment="EST-004"]'));
       const row=doc.querySelector('[data-edit-assignment="EST-004"]').closest('tr');
       const headings=[...doc.querySelectorAll('#content table th')].map(th=>th.textContent);
-      assert(headings.join('|')==='Matrícula|Estudiante|Título de tesis|Director|Evaluadores|Avance|Acciones','Las columnas de asignaciones no están en el orden esperado');
+      assert(headings.join('|')==='Matrícula|Estudiante|Título de tesis|Director // Codirector|Evaluadores|Avance|Acciones','Las columnas de asignaciones no están en el orden esperado');
       assert(row.cells[2].textContent==='Tesis <prueba>'&&row.cells[3].textContent==='Director & asesor'&&!row.cells[2].querySelector('prueba'),'No se muestran correctamente el título y el director');
       assert(row.textContent.includes('Sin asignar'),'Se mostró una asignación inactiva');
       row.querySelector('button').click();

@@ -48,6 +48,8 @@ Solo puede haber un periodo activo a la vez. Para borrar periodos, selecciona su
 
 El programa es obligatorio y debe ser **MCIE** o **DIE**. Puedes modificar un registro con **Editar**. Usa el campo de búsqueda y los filtros de director y periodo para encontrar estudiantes; pulsa los encabezados de la tabla para ordenar.
 
+Si hay codirección, escribe los nombres del director y codirector juntos en el campo **Director de tesis**.
+
 ### 3.4. Registrar evaluadores
 
 1. Entra en **Evaluadores** y pulsa **Nuevo**.
@@ -66,7 +68,7 @@ Desde **Mi perfil**, cada evaluador puede actualizar su nombre, correo, usuario 
 
 Si editas el CSV como texto, encierra entre comillas dobles los valores que contienen el separador; por ejemplo, `"Control, análisis y diseño"`. Dentro de un valor entre comillas, escribe cada comilla doble dos veces. Las exportaciones lo hacen automáticamente.
 
-Para estudiantes se requieren matrícula, nombre, programa, semestre, título y director de tesis. La columna **Periodo** es opcional: si se omite, se usa el periodo activo. También se aceptan CSV anteriores con el encabezado **Generación / cohorte**.
+Para estudiantes se requieren matrícula, nombre, programa, semestre, título y **Director // Codirector**. La columna **Periodo** es opcional: si se omite, se usa el periodo activo. También se aceptan CSV anteriores con los encabezados **Director de tesis** y **Generación / cohorte**.
 
 Para evaluadores se requieren nombre, correo, usuario y contraseña temporal. **El CSV contiene contraseñas en texto legible**: mantenlo protegido, no lo subas a GitHub y elimínalo de forma segura cuando ya no lo necesites.
 

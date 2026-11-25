@@ -30,7 +30,7 @@ window.Evaluator = (() => {
       const evaluation=data.evaluations.find(e=>e.student===s.id&&e.evaluator===data.evaluator?.id);
       return `<tr><td>${s.matricula}</td><td>${s.name}</td><td>${s.thesis}</td><td>${s.director}</td><td><span class="badge ${done?'ok':'warn'}">${done?'Completada':'Pendiente'}</span></td><td><button class="text-button" data-evaluate="${s.id}" data-done="${done}">${done?(canEdit(evaluation)?'Editar':'Consultar'):'Evaluar'}</button></td></tr>`;
     }).join('');
-    return `<div class="table-wrap"><table><thead><tr><th>Matrícula</th><th>Estudiante</th><th>Tesis</th><th>Director</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><thead><tr><th>Matrícula</th><th>Estudiante</th><th>Tesis</th><th>Director // Codirector</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   function rubricForm(student, selectedRubric, existing=null, editable=false) {
     const readOnly=existing&&!editable;

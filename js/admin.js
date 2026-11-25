@@ -144,7 +144,7 @@ window.Admin = (() => {
       <div class="table-wrap"><table><thead><tr>
         <th><input type="checkbox" id="selectAllStudents" aria-label="Seleccionar estudiantes visibles"></th>
         ${sortHeader('matricula','Matrícula',state)}${sortHeader('name','Nombre',state)}
-        ${sortHeader('program','Programa',state)}${sortHeader('semester','Semestre',state)}${sortHeader('thesis','Título de tesis',state)}${sortHeader('director','Director',state)}
+        ${sortHeader('program','Programa',state)}${sortHeader('semester','Semestre',state)}${sortHeader('thesis','Título de tesis',state)}${sortHeader('director','Director // Codirector',state)}
         ${sortHeader('period','Periodo',state)}<th>Estado</th><th>Acciones</th>
       </tr></thead><tbody id="studentRows">${studentRows(data,state)}</tbody></table></div>
     </section>`;
@@ -227,7 +227,7 @@ window.Admin = (() => {
       const completed=data.evaluations.filter(e=>e.student===s.id&&(e.round||1)===2).length;
       return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.thesis)}</td><td>${escapeHtml(s.director)}</td><td>${names||'Sin asignar'}</td><td>${completed} de 3</td><td><button class="text-button" data-edit-assignment="${escapeHtml(s.id)}">Asignar</button></td></tr>`;
     }).join('')||`<tr><td colspan="7" class="empty-row">${data.period?.id?'No hay estudiantes en el periodo activo. Revisa la cohorte de los estudiantes o activa el periodo correspondiente.':'No hay un periodo activo. Activa un periodo para asignar evaluadores.'}</td></tr>`;
-    return `<section class="panel"><div class="panel-header"><h2>Asignaciones</h2></div>${table(['Matrícula','Estudiante','Título de tesis','Director','Evaluadores','Avance','Acciones'],byStudent)}</section>`;
+    return `<section class="panel"><div class="panel-header"><h2>Asignaciones</h2></div>${table(['Matrícula','Estudiante','Título de tesis','Director // Codirector','Evaluadores','Avance','Acciones'],byStudent)}</section>`;
   }
   function studentForm(data,student={}) {
     const periods=data.periods||[data.period].filter(Boolean);

@@ -56,7 +56,7 @@ window.Reports = (() => {
   }
 
   function assignmentsReport(data) {
-    const headers=['Matrícula','Estudiante','Programa','Título de tesis','Director','Evaluadores'];
+    const headers=['Matrícula','Estudiante','Programa','Título de tesis','Director // Codirector','Evaluadores'];
     const rows=data.students.map(student=>{
       const names=data.assignments.filter(a=>a.student===student.id&&a.state==='Activa')
         .map(a=>data.evaluators.find(e=>e.id===a.evaluator)?.name||a.evaluator);
@@ -86,7 +86,7 @@ window.Reports = (() => {
       ${reportHeading('Reporte individual del alumno',periodName(data,student.period||data.period?.id))}
       <dl class="report-meta">
         ${meta('Matrícula',student.matricula)}${meta('Nombre',student.name)}
-        ${meta('Programa',student.program||'Sin asignar')}${meta('Semestre',student.semester)}${meta('Director de tesis',student.director)}
+        ${meta('Programa',student.program||'Sin asignar')}${meta('Semestre',student.semester)}${meta('Director // Codirector',student.director)}
         ${meta('Título de tesis',student.thesis)}
       </dl>
       <div class="table-wrap"><table class="report-table">
@@ -106,7 +106,7 @@ window.Reports = (() => {
     const csvRows=[
       ['Reporte individual del alumno',periodName(data,student.period||data.period?.id)],
       ['Matrícula',student.matricula],['Nombre',student.name],['Programa',student.program||'Sin asignar'],['Semestre',student.semester],
-      ['Director de tesis',student.director],['Título de tesis',student.thesis],
+      ['Director // Codirector',student.director],['Título de tesis',student.thesis],
       [],
       ['Criterio',...reviewers.map((r,i)=>`R${i+1} - ${r.name}`)],
       ...rubric.map(c=>[c.name,...evaluations.map(e=>scoreForCsv(e,c.id))]),

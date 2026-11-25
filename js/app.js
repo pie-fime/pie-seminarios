@@ -386,7 +386,7 @@ window.App = (() => {
     const records=source.filter(item=>selected.has(item.id));
     if(isStudents){
       Csv.download(
-        [['Matrícula','Nombre','Programa','Semestre','Título de tesis','Director de tesis','Periodo'],...records.map(s=>[s.matricula,s.name,s.program||'',s.semester,s.thesis,s.director,periodName(directoryData,s.period)])],
+        [['Matrícula','Nombre','Programa','Semestre','Título de tesis','Director // Codirector','Periodo'],...records.map(s=>[s.matricula,s.name,s.program||'',s.semester,s.thesis,s.director,periodName(directoryData,s.period)])],
         'estudiantes.csv'
       );
     }else{
@@ -482,8 +482,8 @@ window.App = (() => {
     const config=type==='students'?{
       title:'Importar estudiantes desde CSV',
       required:['matricula','nombre','programa','semestre','titulodetesis','directordetesis'],
-      header:'Matrícula,Nombre,Programa,Semestre,Título de tesis,Director de tesis,Periodo',
-      description:'Columnas requeridas: matrícula, nombre, programa (MCIE o DIE), semestre, título de tesis y director de tesis. El periodo es opcional; si se omite, se usa el periodo activo.',
+      header:'Matrícula,Nombre,Programa,Semestre,Título de tesis,Director // Codirector,Periodo',
+      description:'Columnas requeridas: matrícula, nombre, programa (MCIE o DIE), semestre, título de tesis y director // codirector. El periodo es opcional; si se omite, se usa el periodo activo.',
       action:'Importar estudiantes'
     }:{
       title:'Importar evaluadores desde CSV',
@@ -574,7 +574,7 @@ window.App = (() => {
     const aliases=type==='students'?{
       matricula:['matricula'],nombre:['nombre','nombrecompleto','name'],programa:['programa','program'],semestre:['semestre','semester'],
       titulodetesis:['titulodetesis','titulotesis','titulodelatesis','titulo','thesistitle'],
-      directordetesis:['directordetesis','directortesis','nombredeldirectordetesis','director','thesisdirector'],
+      directordetesis:['directordetesis','directortesis','nombredeldirectordetesis','director','thesisdirector','directorcodirector'],
       period:['generacioncohorte','cohorte','generacion','periodo','period','periodoescolar','idperiodo']
     }:{
       nombre:['nombre','name'],correo:['correo','email'],usuario:['usuario','username'],

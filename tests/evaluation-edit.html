@@ -75,6 +75,12 @@
       await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
       saved=await w.Admin.load();
       assert(saved.evaluations.length===2&&w.Evaluator.canEdit(saved.evaluations.find(e=>e.student==='EST-002')),'Una evaluación nueva debe guardarse con fecha y quedar editable');
+      const otherRubric=[{id:'OTRO',name:'Rúbrica anterior',weight:1,levels:[]}];
+      saved.evaluations.push({student:'EST-003',evaluator:'EV-002',period:saved.period.id,round:2,rubric:otherRubric,observations:'Privado'});
+      w.Admin.saveDemo(saved);
+      const evaluatorData=await w.Evaluator.load();
+      assert(evaluatorData.evaluations.every(e=>e.evaluator==='EV-001')&&!evaluatorData.sourceData,'El demo expone evaluaciones ajenas');
+      assert(evaluatorData.studentRubrics.find(item=>item.student==='EST-003')?.rubric[0].id==='OTRO','No se conservó la rúbrica compartida');
 
       window.Utilities={formatDate:(date,zone)=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date)};
       assert(evaluationEditable('2026-11-23T06:01:00Z',beforeMidnight),'El servidor debe permitir el mismo día');
@@ -90,6 +96,8 @@
       const body={studentId:'S1',rubric:serverRubric,rawCriteria:{C1:90},time:{},observations:'Actualizada'};
       submitEvaluation({username:'evaluador'},body,true);
       assert(rows.length===2&&rows[1][4]===90&&rows[1][5]==='Actualizada'&&rows[1][6]===timestamp&&rows[1][13]==='{"C1":"conservar"}'&&rows[1][14]==='=1+1','El servidor debe conservar fecha, observaciones y fórmulas no editadas');
+      submitEvaluation({username:'evaluador'},{...body,observations:'=1+1'},true);
+      assert(rows[1][5]==="'=1+1",'Las observaciones no deben convertirse en fórmulas');
       const rejects=(session,editing,message)=>{
         let failed=false;try{submitEvaluation(session,body,editing);}catch(error){failed=error.message.includes(message);}
         assert(failed,'Se esperaba el error: '+message);
@@ -100,6 +108,12 @@
       rejects({username:'evaluador'},true,'Solo puedes editar');
       rows[1][6]='';
       rejects({username:'evaluador'},true,'Solo puedes editar');
+      window.dashboard=()=>({period:{id:'P1'},evaluators:[{id:'E1',username:'evaluador'},{id:'E2',username:'otro'}],
+        assignments:[{student:'S1',evaluator:'E1',state:'Activa'}],students:[{id:'S1'},{id:'S2'}],
+        evaluations:[{student:'S1',evaluator:'E2',rubric:serverRubric,observations:'Privado'},{student:'S2',evaluator:'E2',rubric:serverRubric}]});
+      window.getRubric=()=>serverRubric;
+      const privateDashboard=evaluatorDashboard({username:'evaluador'});
+      assert(privateDashboard.evaluations.length===0&&privateDashboard.studentRubrics.length===1&&privateDashboard.studentRubrics[0].student==='S1','El servidor expone evaluaciones ajenas o pierde la rúbrica asignada');
       document.getElementById('result').textContent='Todas las pruebas de edición de evaluaciones pasaron.';
     }catch(error){document.getElementById('result').textContent='Error: '+error.message;console.error(error);}
   };

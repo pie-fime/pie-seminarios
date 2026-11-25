@@ -238,6 +238,7 @@ function doPost(e) {
   try {
     const body=JSON.parse(e.postData.contents);
     if (body.action==='login') return json({ok:true,data:login(body.username,body.password)});
+    if (body.action==='logout') return json({ok:true,data:withDirectoryLock(()=>revokeSession(body.token))});
     const session=validateSession(body.token);
     if (!session) return json({ok:false,error:'Sesión inválida o vencida'});
     if (body.action==='getProfile') return json({ok:true,data:getProfile(session)});
@@ -275,6 +276,7 @@ function ss(){
 function sh(name){return ss().getSheetByName(name);}
 function table(name){const s=sh(name);const values=s.getDataRange().getValues();if(values.length<2)return [];const heads=values.shift();return values.filter(r=>r.some(v=>v!=='')).map(r=>Object.fromEntries(heads.map((h,i)=>[h,r[i]]))); }
 function nextId(prefix,name,column){const rows=table(name);let max=0;rows.forEach(r=>{const n=parseInt(String(r[column]).replace(/\D/g,''),10);if(n>max)max=n;});return prefix+'-'+String(max+1).padStart(3,'0');}
+function sheetText(value){return typeof value==='string'&&value.startsWith('=')?"'"+value:value;}
 function hashPassword(password,salt){const bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,salt+password);return bytes.map(b=>((b<0?b+256:b).toString(16).padStart(2,'0'))).join('');}
 function login(username,password){
   const users=table('Usuarios').find(u=>u.Usuario===username && u.Estado==='Activo');
@@ -294,6 +296,18 @@ function validateSession(token){
   const found=rows.find(r=>r[ti]===token && new Date(r[ei])>now);if(!found)return null;
   const user=table('Usuarios').find(u=>u.ID_Usuario===found[ui] && u.Estado==='Activo');if(!user)return null;
   return {id:user.ID_Usuario,name:user.Nombre,username:user.Usuario,role:user.Rol};
+}
+function revokeSession(token){
+  if(typeof token!=='string'||!token)throw new Error('No se recibió el token de sesión');
+  const sheet=sh('Sesiones'),rows=sheet.getDataRange().getValues(),headers=rows[0];
+  const tokenIndex=headers.indexOf('Token'),userIndex=headers.indexOf('ID_Usuario'),expiryIndex=headers.indexOf('Expira');
+  if([tokenIndex,userIndex,expiryIndex].some(index=>index<0))throw new Error('La hoja Sesiones no tiene las columnas necesarias');
+  const matches=rows.map((row,index)=>({row,index})).filter(item=>item.index>0&&item.row[tokenIndex]===token);
+  if(!matches.length)return {closed:true};
+  if(matches.length!==1)throw new Error('No se encontró una sesión única para cerrar');
+  sheet.getRange(matches[0].index+1,expiryIndex+1).setValue(new Date(0));
+  SpreadsheetApp.flush();
+  return {closed:true};
 }
 function getProfile(session){
   let email='';
@@ -350,7 +364,7 @@ function updateProfile(session, profile){
   }
   const userRange=usersSheet.getRange(rowIndex+1,1,1,headers.length);
   const userFormulas=userRange.getFormulas()[0];
-  const originalUser=row.map((value,index)=>userFormulas[index]||value);
+  const originalUser=row.map((value,index)=>userFormulas[index]||sheetText(value));
   const updatedUser=originalUser.slice();
   updatedUser[nameIndex]=name;updatedUser[usernameIndex]=username;
   if(newPassword){
@@ -361,7 +375,7 @@ function updateProfile(session, profile){
   if(session.role==='evaluator'){
     const range=evaluatorSheet.getRange(evaluatorRow+1,1,1,evaluatorHeaders.length);
     const formulas=range.getFormulas()[0];
-    const original=evaluatorValues[evaluatorRow].map((value,index)=>formulas[index]||value);
+    const original=evaluatorValues[evaluatorRow].map((value,index)=>formulas[index]||sheetText(value));
     const updated=original.slice();
     updated[evaluatorHeaders.indexOf('Nombre')]=name;
     updated[evaluatorHeaders.indexOf('Correo')]=email;
@@ -411,12 +425,13 @@ function reportData(periodId){
   return {period:selected,periods:allPeriods,students,evaluators,assignments,evaluations,rubric:getRubric(false)};
 }
 function evaluatorDashboard(session){
-  const d=dashboard();const ev=d.evaluators.find(e=>e.username===session.username)||d.evaluators.find(e=>e.name===session.name);
-  if(!ev)return {evaluator:{name:session.name},period:d.period,students:[],completed:[],evaluations:[],rubric:getRubric()};
+  const d=dashboard();const ev=d.evaluators.find(e=>e.username===session.username);
+  if(!ev)return {evaluator:{name:session.name},period:d.period,students:[],completed:[],evaluations:[],studentRubrics:[],rubric:getRubric()};
   const assigned=d.assignments.filter(a=>a.evaluator===ev.id&&a.state==='Activa').map(a=>a.student);
   const students=d.students.filter(s=>assigned.includes(s.id));
-  const completed=d.evaluations.filter(e=>e.evaluator===ev.id).map(e=>e.student);
-  return {evaluator:ev,period:d.period,students:students,completed:completed,evaluations:d.evaluations,rubric:getRubric()};
+  const evaluations=d.evaluations.filter(e=>e.evaluator===ev.id&&assigned.includes(e.student));
+  const studentRubrics=students.map(s=>({student:s.id,rubric:d.evaluations.find(e=>e.student===s.id)?.rubric})).filter(item=>item.rubric);
+  return {evaluator:ev,period:d.period,students:students,completed:evaluations.map(e=>e.student),evaluations:evaluations,studentRubrics:studentRubrics,rubric:getRubric()};
 }
 function mapStudent(s){
   return {id:s.ID_Estudiante,matricula:s.Matricula,name:s.Nombre,program:s.Programa||'',semester:s.Semestre,thesis:s.Titulo_Tesis,director:s.Director_Tesis,period:s.ID_Periodo,state:s.Estado};
@@ -469,13 +484,13 @@ function saveStudent(s){
   const duplicate=table('Estudiantes').some(student=>student.ID_Estudiante!==s.id&&student.ID_Periodo===period.ID_Periodo&&String(student.Matricula).toLowerCase()===String(s.matricula).toLowerCase());
   if(duplicate)throw new Error('La matrícula ya existe en esta cohorte');
   const id=s.id||nextId('EST','Estudiantes','ID_Estudiante');
-  const record={ID_Estudiante:id,Matricula:s.matricula,Nombre:s.name,Semestre:s.semester,Titulo_Tesis:s.thesis,Director_Tesis:s.director,ID_Periodo:period.ID_Periodo,Estado:s.state||'Activo',Programa:s.program};
+  const record={ID_Estudiante:id,Matricula:sheetText(s.matricula),Nombre:sheetText(s.name),Semestre:sheetText(s.semester),Titulo_Tesis:sheetText(s.thesis),Director_Tesis:sheetText(s.director),ID_Periodo:period.ID_Periodo,Estado:s.state||'Activo',Programa:s.program};
   if(s.id){
     const values=sheet.getDataRange().getValues();const idColumn=headers.indexOf('ID_Estudiante');
     const index=values.findIndex((valuesRow,rowIndex)=>rowIndex>0&&valuesRow[idColumn]===s.id);
     if(index<0)throw new Error('No se encontró el estudiante que se intenta actualizar');
     const range=sheet.getRange(index+1,1,1,headers.length),formulas=range.getFormulas()[0];
-    range.setValues([headers.map((header,i)=>Object.prototype.hasOwnProperty.call(record,header)?record[header]:(formulas[i]||values[index][i]))]);
+    range.setValues([headers.map((header,i)=>Object.prototype.hasOwnProperty.call(record,header)?record[header]:(formulas[i]||sheetText(values[index][i])))]);
   }else sheet.appendRow(headers.map(header=>Object.prototype.hasOwnProperty.call(record,header)?record[header]:''));
   return {id:id};
 }
@@ -485,14 +500,54 @@ function studentHeaders(sheet){
   return headers;
 }
 function saveEvaluator(e){
+  if(e?.id)return updateEvaluator(e);
   if(!e.name||!e.email||!e.username||!e.password)throw new Error('Todos los datos del evaluador son obligatorios');
   if(table('Usuarios').some(user=>String(user.Usuario).toLowerCase()===String(e.username).toLowerCase()))throw new Error('El usuario ya existe');
   if(table('Evaluadores').some(evaluator=>String(evaluator.Correo).toLowerCase()===String(e.email).toLowerCase()))throw new Error('El correo ya está registrado');
   const id=nextId('EV','Evaluadores','ID_Evaluador');
-  sh('Evaluadores').appendRow([id,e.name,e.email,e.username,'Activo']);
   const userId=nextId('USR','Usuarios','ID_Usuario');const salt=Utilities.getUuid();
-  sh('Usuarios').appendRow([userId,e.name,e.username,hashPassword(e.password,salt),salt,'evaluator','Activo',true]);
+  writeNewDirectoryRows([
+    directoryEntry('Evaluadores',[{ID_Evaluador:id,Nombre:sheetText(e.name),Correo:sheetText(e.email),Usuario:sheetText(e.username),Estado:'Activo'}]),
+    directoryEntry('Usuarios',[{ID_Usuario:userId,Nombre:sheetText(e.name),Usuario:sheetText(e.username),Password_Hash:hashPassword(e.password,salt),Salt:salt,Rol:'evaluator',Estado:'Activo',Debe_Cambiar:true}])
+  ]);
   return {id:id};
+}
+function updateEvaluator(e){
+  if(typeof e.id!=='string'||typeof e.name!=='string'||typeof e.email!=='string'||typeof e.username!=='string')
+    throw new Error('Introduce los datos del evaluador');
+  const name=e.name.trim(),email=e.email.trim(),username=e.username.trim();
+  if(!name||!username||/\s/.test(username)||name.startsWith('=')||username.startsWith('=')||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw new Error('Introduce un nombre, usuario y correo válidos');
+  const evaluatorSheet=sh('Evaluadores'),userSheet=sh('Usuarios');
+  const evaluatorRows=evaluatorSheet.getDataRange().getValues(),userRows=userSheet.getDataRange().getValues();
+  const eh=evaluatorRows[0],uh=userRows[0];
+  if(['ID_Evaluador','Nombre','Correo','Usuario'].some(h=>eh.filter(v=>v===h).length!==1)||
+     ['Nombre','Usuario','Rol'].some(h=>uh.filter(v=>v===h).length!==1))throw new Error('Las hojas de evaluadores o usuarios no tienen las columnas necesarias');
+  const matches=evaluatorRows.map((row,index)=>({row,index})).filter(item=>item.index>0&&item.row[eh.indexOf('ID_Evaluador')]===e.id);
+  if(matches.length!==1)throw new Error('No se encontró un evaluador único');
+  const existing=matches[0],oldUsername=String(existing.row[eh.indexOf('Usuario')]);
+  const users=userRows.map((row,index)=>({row,index})).filter(item=>item.index>0&&String(item.row[uh.indexOf('Usuario')]).toLowerCase()===oldUsername.toLowerCase());
+  if(users.length!==1||users[0].row[uh.indexOf('Rol')]!=='evaluator')throw new Error('No se encontró una cuenta de evaluador única');
+  if(userRows.some((row,index)=>index>0&&index!==users[0].index&&String(row[uh.indexOf('Usuario')]).toLowerCase()===username.toLowerCase())||
+     evaluatorRows.some((row,index)=>index>0&&index!==existing.index&&String(row[eh.indexOf('Usuario')]).toLowerCase()===username.toLowerCase()))
+    throw new Error('El usuario ya existe');
+  if(evaluatorRows.some((row,index)=>index>0&&index!==existing.index&&String(row[eh.indexOf('Correo')]).toLowerCase()===email.toLowerCase()))
+    throw new Error('El correo ya está registrado');
+  const evaluatorRange=evaluatorSheet.getRange(existing.index+1,1,1,eh.length),userRange=userSheet.getRange(users[0].index+1,1,1,uh.length);
+  const evaluatorFormulas=evaluatorRange.getFormulas()[0],userFormulas=userRange.getFormulas()[0];
+  const originalEvaluator=existing.row.map((value,index)=>evaluatorFormulas[index]||sheetText(value));
+  const originalUser=users[0].row.map((value,index)=>userFormulas[index]||sheetText(value));
+  const updatedEvaluator=originalEvaluator.slice(),updatedUser=originalUser.slice();
+  updatedEvaluator[eh.indexOf('Nombre')]=name;updatedEvaluator[eh.indexOf('Correo')]=email;updatedEvaluator[eh.indexOf('Usuario')]=username;
+  updatedUser[uh.indexOf('Nombre')]=name;updatedUser[uh.indexOf('Usuario')]=username;
+  try{
+    evaluatorRange.setValues([updatedEvaluator]);userRange.setValues([updatedUser]);SpreadsheetApp.flush();
+  }catch(error){
+    try{evaluatorRange.setValues([originalEvaluator]);userRange.setValues([originalUser]);SpreadsheetApp.flush();}
+    catch(rollbackError){throw new Error('No se pudo guardar el evaluador ni restaurar los datos: '+rollbackError.message);}
+    throw error;
+  }
+  return {id:e.id};
 }
 function deleteDirectoryRecords(type,ids){
   if(!Array.isArray(ids)||!ids.length||ids.some(id=>typeof id!=='string'||!id.trim())||new Set(ids).size!==ids.length)throw new Error('Selecciona registros válidos para borrar');
@@ -548,6 +603,38 @@ function withDirectoryLock(action){
   lock.waitLock(30000);
   try{return action();}finally{lock.releaseLock();}
 }
+function directoryEntry(name,records){
+  const sheet=sh(name),headers=sheet.getDataRange().getValues()[0];
+  if(Object.keys(records[0]).some(key=>headers.filter(header=>header===key).length!==1))
+    throw new Error('La hoja '+name+' no tiene las columnas necesarias');
+  return {sheet:sheet,rows:records.map(record=>headers.map(header=>Object.prototype.hasOwnProperty.call(record,header)?record[header]:''))};
+}
+function writeNewDirectoryRows(entries,afterWrite,undoChanges){
+  const attempted=[];
+  try{
+    entries.forEach(entry=>{
+      const range=entry.sheet.getRange(entry.sheet.getLastRow()+1,1,entry.rows.length,entry.rows[0].length);
+      attempted.push({range:range,rows:entry.rows});
+      range.setValues(entry.rows);
+    });
+    if(afterWrite)afterWrite();
+    SpreadsheetApp.flush();
+  }catch(error){
+    try{
+      if(undoChanges)undoChanges();
+      attempted.forEach(entry=>{
+        const values=entry.range.getValues(),formulas=entry.range.getFormulas();
+        if(values.some((row,i)=>row.some((value,j)=>{
+          const expected=entry.rows[i][j];
+          return formulas[i][j]!==''||(value!==''&&String(value)!==String(expected)&&!(typeof expected==='string'&&expected.startsWith("'=")&&value===expected.slice(1)));
+        })))throw new Error('Las filas nuevas cambiaron durante la operación');
+      });
+      attempted.reverse().forEach(entry=>entry.range.clearContent());
+      SpreadsheetApp.flush();
+    }catch(rollbackError){throw new Error('No se pudo completar la operación ni restaurar las filas nuevas; revisa las hojas: '+rollbackError.message);}
+    throw error;
+  }
+}
 function importStudents(students){
   if(!Array.isArray(students)||!students.length)throw new Error('El archivo no contiene estudiantes para importar');
   const sheet=sh('Estudiantes'),headers=studentHeaders(sheet);
@@ -568,7 +655,7 @@ function importStudents(students){
   });
   const firstNumber=Number(nextId('EST','Estudiantes','ID_Estudiante').split('-').pop());
   const rows=students.map(function(s,index){
-    const record={ID_Estudiante:'EST-'+String(firstNumber+index).padStart(3,'0'),Matricula:s.matricula,Nombre:s.name,Semestre:s.semester,Titulo_Tesis:s.thesis,Director_Tesis:s.director,ID_Periodo:s.periodId,Estado:'Activo',Programa:s.program};
+    const record={ID_Estudiante:'EST-'+String(firstNumber+index).padStart(3,'0'),Matricula:sheetText(s.matricula),Nombre:sheetText(s.name),Semestre:sheetText(s.semester),Titulo_Tesis:sheetText(s.thesis),Director_Tesis:sheetText(s.director),ID_Periodo:s.periodId,Estado:'Activo',Programa:s.program};
     return headers.map(header=>Object.prototype.hasOwnProperty.call(record,header)?record[header]:'');
   });
   const startRow=sheet.getLastRow()+1;
@@ -597,13 +684,10 @@ function importEvaluators(evaluators){
     const evaluatorId='EV-'+String(firstEvaluatorNumber+index).padStart(3,'0');
     const userId='USR-'+String(firstUserNumber+index).padStart(3,'0');
     const salt=Utilities.getUuid();
-    evaluatorRows.push([evaluatorId,e.name,e.email,e.username,'Activo']);
-    userRows.push([userId,e.name,e.username,hashPassword(e.password,salt),salt,'evaluator','Activo',true]);
+    evaluatorRows.push({ID_Evaluador:evaluatorId,Nombre:sheetText(e.name),Correo:sheetText(e.email),Usuario:sheetText(e.username),Estado:'Activo'});
+    userRows.push({ID_Usuario:userId,Nombre:sheetText(e.name),Usuario:sheetText(e.username),Password_Hash:hashPassword(e.password,salt),Salt:salt,Rol:'evaluator',Estado:'Activo',Debe_Cambiar:true});
   });
-  const evaluatorSheet=sh('Evaluadores');
-  evaluatorSheet.getRange(evaluatorSheet.getLastRow()+1,1,evaluatorRows.length,evaluatorRows[0].length).setValues(evaluatorRows);
-  const userSheet=sh('Usuarios');
-  userSheet.getRange(userSheet.getLastRow()+1,1,userRows.length,userRows[0].length).setValues(userRows);
+  writeNewDirectoryRows([directoryEntry('Evaluadores',evaluatorRows),directoryEntry('Usuarios',userRows)]);
   return {imported:evaluators.length};
 }
 function saveAssignment(studentId,evaluatorIds){
@@ -617,10 +701,30 @@ function saveAssignment(studentId,evaluatorIds){
   const old=sh('Asignaciones');const values=old.getDataRange().getValues();const head=values.shift();
   const stateIndex=head.indexOf('Estado');
   if(['ID_Asignacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Fecha_Asignacion','Estado'].some(h=>head.filter(v=>v===h).length!==1))throw new Error('La hoja Asignaciones no tiene las columnas necesarias');
-  for(let i=0;i<values.length;i++){if(values[i][head.indexOf('ID_Periodo')]===d.period.id&&values[i][head.indexOf('ID_Estudiante')]===studentId&&values[i][stateIndex]==='Activa'&&!evaluatorIds.includes(values[i][head.indexOf('ID_Evaluador')]))old.getRange(i+2,stateIndex+1).setValue('Inactiva');}
-  evaluatorIds.filter(ev=>!assigned.some(a=>a.evaluator===ev)).forEach(function(ev){
-    const record={ID_Asignacion:nextId('AS','Asignaciones','ID_Asignacion'),ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev,Fecha_Asignacion:new Date(),Estado:'Activa'};
-    old.appendRow(head.map(h=>record[h]===undefined?'':record[h]));
+  const idIndex=head.indexOf('ID_Asignacion');
+  const changes=values.map((row,index)=>({row:row,index:index})).filter(item=>item.row[head.indexOf('ID_Periodo')]===d.period.id&&item.row[head.indexOf('ID_Estudiante')]===studentId&&item.row[stateIndex]==='Activa'&&!evaluatorIds.includes(item.row[head.indexOf('ID_Evaluador')]));
+  const added=evaluatorIds.filter(ev=>!assigned.some(a=>a.evaluator===ev));
+  const firstNumber=added.length?Number(nextId('AS','Asignaciones','ID_Asignacion').split('-').pop()):0;
+  const newRows=added.map((ev,index)=>{
+    const record={ID_Asignacion:'AS-'+String(firstNumber+index).padStart(3,'0'),ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev,Fecha_Asignacion:new Date(),Estado:'Activa'};
+    return head.map(h=>record[h]===undefined?'':record[h]);
+  });
+  const attempted=[];
+  writeNewDirectoryRows(newRows.length?[{sheet:old,rows:newRows}]:[],()=>{
+    changes.forEach(change=>{
+      const range=old.getRange(change.index+2,stateIndex+1);
+      attempted.push({range:range,index:change.index,id:change.row[idIndex],formula:range.getFormula(),value:change.row[stateIndex]});
+      range.setValue('Inactiva');
+    });
+  },()=>{
+    attempted.reverse().forEach(change=>{
+      const current=old.getRange(change.index+2,1,1,head.length).getValues()[0];
+      if(current[idIndex]!==change.id)throw new Error('Una asignación cambió durante la operación');
+      const formula=change.range.getFormula();
+      if(current[stateIndex]===change.value&&formula===change.formula)return;
+      if(current[stateIndex]!=='Inactiva'||formula)throw new Error('Una asignación cambió durante la operación');
+      change.range.setValue(change.formula||change.value);
+    });
   });
   return {ok:true};
 }
@@ -662,7 +766,7 @@ function submitEvaluation(session,body,editing=false){
   const sheet=sh('Evaluaciones'),sheetValues=sheet.getDataRange().getValues(),headers=sheetValues[0];
   if(NEW_EVALUATION_HEADERS.some(h=>!headers.includes(h)))throw new Error('Falta migrar la hoja Evaluaciones');
   const id=editing?duplicate.id:nextId('EVL','Evaluaciones','ID_Evaluacion');
-  const record={ID_Evaluacion:id,ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev.id,Calificacion_Individual:individual,Observaciones_Generales:body.observations||'',Fecha_Envio:new Date(),Estado:'Enviada',Ronda:2,Rubrica_JSON:JSON.stringify(rubric),Calificaciones_JSON:JSON.stringify(criteria),Calificaciones_Originales_JSON:JSON.stringify(raw),Tiempo_JSON:JSON.stringify(time),Observaciones_Criterios_JSON:JSON.stringify(observations)};
+  const record={ID_Evaluacion:id,ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev.id,Calificacion_Individual:individual,Observaciones_Generales:sheetText(body.observations||''),Fecha_Envio:new Date(),Estado:'Enviada',Ronda:2,Rubrica_JSON:JSON.stringify(rubric),Calificaciones_JSON:JSON.stringify(criteria),Calificaciones_Originales_JSON:JSON.stringify(raw),Tiempo_JSON:JSON.stringify(time),Observaciones_Criterios_JSON:JSON.stringify(observations)};
   if(Object.keys(record).some(h=>headers.filter(value=>value===h).length!==1))throw new Error('La hoja Evaluaciones no tiene las columnas necesarias');
   if(editing){
     if(!evaluationEditable(duplicate.submittedAt))throw new Error('Solo puedes editar la evaluación el día en que la enviaste');
@@ -672,7 +776,7 @@ function submitEvaluation(session,body,editing=false){
     const row=sheetValues[matching[0]],range=sheet.getRange(matching[0]+1,1,1,headers.length);
     const formulas=range.getFormulas()[0];
     delete record.Fecha_Envio;
-    range.setValues([headers.map((h,i)=>record[h]===undefined?(formulas[i]||row[i]):record[h])]);
+    range.setValues([headers.map((h,i)=>record[h]===undefined?(formulas[i]||sheetText(row[i])):record[h])]);
   }else sheet.appendRow(headers.map(h=>record[h]===undefined?'':record[h]));
   return {id:id,individual:individual};
 }

@@ -1,5 +1,5 @@
 window.App = (() => {
-  let session=null,data=null,reportData=null,directoryData=null,currentView='dashboard',evaluatorTimer=null;
+  let session=null,data=null,reportData=null,directoryData=null,currentView='dashboard',evaluatorTimer=null,modalOpener=null;
   const studentTableState={search:'',director:'',period:'',sort:'matricula',direction:'asc',selected:new Set()};
   const evaluatorTableState={search:'',status:'',sort:'name',direction:'asc',selected:new Set()};
   const els={loginView:document.getElementById('loginView'),appView:document.getElementById('appView'),loginForm:document.getElementById('loginForm'),loginError:document.getElementById('loginError'),content:document.getElementById('content'),nav:document.getElementById('mainNav'),title:document.getElementById('pageTitle'),period:document.getElementById('activePeriodLabel'),userName:document.getElementById('userName'),badge:document.getElementById('connectionBadge'),modal:document.getElementById('modal'),modalTitle:document.getElementById('modalTitle'),modalBody:document.getElementById('modalBody')};
@@ -7,8 +7,17 @@ window.App = (() => {
   function toast(message) {
     const t=document.createElement('div');t.className='toast';t.textContent=message;document.getElementById('toastRegion').appendChild(t);setTimeout(()=>t.remove(),3500);
   }
-  function openModal(title,body) { els.modalTitle.textContent=title;els.modalBody.innerHTML=body;els.modal.classList.remove('hidden'); }
-  function closeModal(){els.modal.classList.add('hidden');}
+  function openModal(title,body) {
+    modalOpener=document.activeElement;
+    els.modalTitle.textContent=title;els.modalBody.innerHTML=body;els.modal.classList.remove('hidden');
+    document.getElementById('modalClose').focus();
+  }
+  function closeModal(){
+    if(els.modal.classList.contains('hidden'))return;
+    els.modal.classList.add('hidden');
+    if(modalOpener?.isConnected)modalOpener.focus();
+    modalOpener=null;
+  }
   function setMenuOpen(open,restoreFocus=false){
     const sidebar=document.getElementById('sidebar');
     const button=document.getElementById('menuButton');
@@ -27,7 +36,20 @@ window.App = (() => {
     document.getElementById('closeMenuButton').addEventListener('click',()=>setMenuOpen(false,true));
     document.getElementById('menuBackdrop').addEventListener('click',()=>setMenuOpen(false,true));
     els.nav.addEventListener('click',event=>{if(event.target.closest('.nav-button')&&document.getElementById('sidebar').classList.contains('open'))setMenuOpen(false,true);});
-    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.getElementById('sidebar').classList.contains('open'))setMenuOpen(false,true);});
+    document.addEventListener('keydown',event=>{
+      if(!els.modal.classList.contains('hidden')){
+        if(event.key==='Escape'){event.preventDefault();closeModal();return;}
+        if(event.key==='Tab'){
+          const focusable=[...els.modal.querySelectorAll('button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(element=>element.getClientRects().length);
+          if(!focusable.length){event.preventDefault();return;}
+          const first=focusable[0],last=focusable[focusable.length-1];
+          if(event.shiftKey&&(document.activeElement===first||!els.modal.contains(document.activeElement))){event.preventDefault();last.focus();}
+          else if(!event.shiftKey&&(document.activeElement===last||!els.modal.contains(document.activeElement))){event.preventDefault();first.focus();}
+        }
+        return;
+      }
+      if(event.key==='Escape'&&document.getElementById('sidebar').classList.contains('open'))setMenuOpen(false,true);
+    });
     window.addEventListener('resize',()=>{if(window.innerWidth>900&&document.getElementById('sidebar').classList.contains('open'))setMenuOpen(false);});
     els.badge.textContent=API.isDemo()?'Modo demostración':'Servidor conectado';
     els.badge.className=`badge ${API.isDemo()?'neutral':'ok'}`;
@@ -42,7 +64,7 @@ window.App = (() => {
     }catch(error){els.loginError.textContent=error.message;els.loginError.classList.remove('hidden');}
   }
   async function logout(){
-    await Auth.logout();
+    try{await Auth.logout();}catch(error){toast(`No se pudo cerrar la sesión: ${error.message}`);return;}
     clearInterval(evaluatorTimer);evaluatorTimer=null;
     session=null;closeModal();setMenuOpen(false);
     els.modalBody.replaceChildren();els.content.replaceChildren();els.nav.replaceChildren();
@@ -467,15 +489,23 @@ window.App = (() => {
     const form=document.getElementById('evaluatorForm');
     form.onsubmit=async e=>{
       e.preventDefault();const fd=new FormData(form);const evaluator=Object.fromEntries(fd.entries());
+      const button=form.querySelector('[type=submit]');button.disabled=true;
       try{
         if(!API.isDemo())await API.call('saveEvaluator',{evaluator},session.token);
         else{
-          const current=await Admin.loadManagement(),username=evaluator.username.trim().toLowerCase();
-          if(Auth.demoUsernameTaken(current,username))throw new Error('El usuario ya existe');
-          evaluator.id=Admin.nextDemoId(current.evaluators,'EV');evaluator.state='Activo';current.evaluators.push(evaluator);Admin.saveDemo(current);
+          const current=await Admin.loadManagement();
+          const name=evaluator.name.trim(),username=evaluator.username.trim(),email=evaluator.email.trim();
+          if(!name||!username||/\s/.test(username)||name.startsWith('=')||username.startsWith('=')||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Introduce un nombre, usuario y correo válidos');
+          const existing=evaluator.id?current.evaluators.find(item=>item.id===evaluator.id):null;
+          if(evaluator.id&&!existing)throw new Error('No se encontró el evaluador');
+          if((!existing||existing.username.toLowerCase()!==username.toLowerCase())&&Auth.demoUsernameTaken(current,username))throw new Error('El usuario ya existe');
+          if(current.evaluators.some(item=>item.id!==evaluator.id&&item.email.toLowerCase()===email.toLowerCase()))throw new Error('El correo ya está registrado');
+          if(existing)Object.assign(existing,{name,username,email});
+          else current.evaluators.push({id:Admin.nextDemoId(current.evaluators,'EV'),name,username,email,state:'Activo'});
+          Admin.saveDemo(current);
         }
         closeModal();toast('Evaluador guardado');renderAdmin('evaluators');
-      }catch(error){toast(error.message);}
+      }catch(error){button.disabled=false;toast(error.message);}
     };
   }
   function openCsvImport(type){
@@ -677,8 +707,8 @@ window.App = (() => {
     els.content.querySelectorAll('[data-evaluate]').forEach(b=>b.onclick=()=>{
       const student=data.students.find(s=>s.id===b.dataset.evaluate);
       const existing=data.evaluations.find(e=>e.student===student.id&&e.evaluator===data.evaluator.id);
-      const prior=data.evaluations.find(e=>e.student===student.id);
-      const rubric=existing?.rubric||prior?.rubric||data.rubric;
+      const savedRubric=data.studentRubrics?.find(item=>item.student===student.id)?.rubric;
+      const rubric=existing?.rubric||savedRubric||data.rubric;
       const editable=existing&&Evaluator.canEdit(existing);
       openModal(existing?(editable?'Editar evaluación':'Consulta de evaluación'):'Formulario de evaluación',Evaluator.rubricForm(student,rubric,existing,editable));
       wireEvaluation(existing,student.id,rubric,editable);

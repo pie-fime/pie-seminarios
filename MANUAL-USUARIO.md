@@ -13,13 +13,14 @@ PIE-SEMI-EVAL permite organizar y evaluar seminarios de avance de tesis. El **ad
 5. Al terminar, selecciona **Cerrar sesión**. Se cerrarán las ventanas y se descartarán los cambios que no hayas guardado; los datos guardados se conservan.
 
 Puedes cambiar tu contraseña desde **Mi perfil** cuando hayas iniciado sesión. Si no puedes entrar o necesitas restablecerla, contacta al administrador técnico. No compartas tu contraseña con otras personas.
+Si el servidor no puede cerrar la sesión, se muestra un error y la sesión permanece abierta para que puedas reintentar.
 
 ### Modo demostración y servidor
 
 - **Modo demostración:** usa datos de ejemplo y guarda los cambios solamente en el navegador y dispositivo actuales. No se sincronizan con Google Sheets y pueden perderse si se borran los datos del navegador.
 - **Servidor conectado:** la aplicación está configurada para usar Apps Script y Google Sheets. La etiqueta indica la configuración seleccionada, no garantiza que el servidor responda correctamente.
 
-En modo demostración puedes entrar con `admin` / `admin123` o `evaluador` / `evaluador123`. Son credenciales públicas de prueba; no deben usarse para cuentas reales. Los evaluadores adicionales creados en el demo no pueden iniciar sesión con sus propias credenciales; para probar la evaluación utiliza la cuenta `evaluador`.
+Para activar el modo demostración añade `?demo=1` a la URL. Puedes entrar con `admin` / `admin123` o `evaluador` / `evaluador123`. Son credenciales públicas de prueba; no deben usarse para cuentas reales. Los evaluadores adicionales creados en el demo no pueden iniciar sesión con sus propias credenciales; para probar la evaluación utiliza la cuenta `evaluador`.
 
 Si la página está configurada para usar el servidor, las credenciales del demo no sirven para acceder a él.
 
@@ -57,6 +58,7 @@ Si hay codirección, escribe los nombres del director y codirector en el campo *
 3. Pulsa **Guardar evaluador** y entrega las credenciales por un medio seguro.
 
 Desde **Mi perfil**, cada evaluador puede actualizar su nombre, correo, usuario y contraseña. Para cambiar la contraseña debe proporcionar la contraseña actual y confirmar la nueva.
+El administrador también puede usar **Editar** para actualizar el nombre, correo y usuario de un evaluador sin cambiar su contraseña ni sus asignaciones.
 
 ### 3.5. Importar directorios con CSV
 
@@ -77,6 +79,7 @@ Para evaluadores se requieren nombre, correo, usuario y contraseña temporal. **
 En **Estudiantes** o **Evaluadores**, marca las casillas de las filas y pulsa **Exportar CSV** o **Borrar**. Puedes seleccionar varias filas. La selección puede conservar registros ocultos por los filtros; revísala antes de borrar.
 
 Las contraseñas no se incluyen en la exportación de evaluadores. El borrado se bloquea si algún registro seleccionado tiene asignaciones o evaluaciones asociadas, incluso históricas. Al borrar un evaluador sin registros asociados, se desactiva su cuenta de acceso.
+Si ocurre un error durante un borrado múltiple o al borrar evaluadores, la operación puede quedar incompleta. Antes de reintentar, pide al administrador técnico que revise los registros y las cuentas afectadas.
 
 ### 3.7. Asignar revisores
 

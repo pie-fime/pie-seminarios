@@ -110,6 +110,57 @@
     updateProfile({id:'U2',role:'admin',username:'otro',name:'Otro'},
       {name:'Admin editado',username:'admin.editado',currentPassword:'otro',newPassword:''});
     assert(sheets.Usuarios[2][4]==='admin.editado'&&sheets.Usuarios[2][6]==='hash:otro:sal','No se actualizó el administrador correctamente');
+    const edited={id:'EV1',name:'Ana editada',username:'ana.editada',email:'editada@ejemplo.mx'};
+    failUserWrite=true;
+    await rejects(()=>saveEvaluator(edited),'Fallo simulado');
+    assert(sheets.Usuarios[1][4]==='ana.nueva'&&sheets.Evaluadores[1][1]==='ana.nueva','No se restauraron las cuentas al fallar la edición');
+    const originalHash=sheets.Usuarios[1][6];
+    saveEvaluator(edited);
+    assert(sheets.Evaluadores[1][3]==='EV1'&&sheets.Evaluadores[1][1]==='ana.editada'&&sheets.Usuarios[1][4]==='ana.editada'&&sheets.Usuarios[1][6]===originalHash,'La edición debe conservar ID y contraseña');
+    await rejects(()=>saveEvaluator({...edited,username:'admin.editado'}),'usuario ya existe');
+    await rejects(()=>saveEvaluator({...edited,email:'otro@ejemplo.mx'}),'correo ya está registrado');
+    const newSheets={
+      Evaluadores:[['ID_Evaluador','Nombre','Correo','Usuario','Estado'],['EV-001','Existente','original@ejemplo.mx','original','Activo']],
+      Usuarios:[['ID_Usuario','Nombre','Usuario','Password_Hash','Salt','Rol','Estado','Debe_Cambiar'],['USR-001','Existente','original','hash-original','sal','evaluator','Activo',false]],
+      Estudiantes:[['ID_Estudiante','Matricula','Nombre','Semestre','Titulo_Tesis','Director_Tesis','ID_Periodo','Estado','Programa']],
+      Periodos:[['ID_Periodo','Nombre_Periodo','Estado'],['P1','Periodo','Activo']]
+    };
+    let failNewUser=false;
+    window.sh=name=>({
+      getLastRow:()=>newSheets[name].reduce((last,row,index)=>row.some(value=>value!=='')?index+1:last,0),
+      getDataRange:()=>({getValues:()=>newSheets[name].map(row=>row.slice())}),
+      getRange:(row,column,height,width)=>({
+        setValues:values=>{
+          values.forEach((value,i)=>{newSheets[name][row-1+i]=value.slice();});
+          if(failNewUser&&name==='Usuarios'){
+            failNewUser=false;
+            throw new Error('Fallo simulado de creación');
+          }
+        },
+        getValues:()=>Array.from({length:height},(_,i)=>newSheets[name][row-1+i]?.slice(0,width)||Array(width).fill('')),
+        getFormulas:()=>Array.from({length:height},()=>Array(width).fill('')),
+        clearContent:()=>{for(let i=0;i<height;i++)newSheets[name][row-1+i]=Array(width).fill('');}
+      })
+    });
+    const newEvaluator={name:'Nuevo',email:'nuevo@ejemplo.mx',username:'nuevo',password:'temporal'};
+    failNewUser=true;
+    await rejects(()=>saveEvaluator(newEvaluator),'Fallo simulado de creación');
+    assert(newSheets.Evaluadores[1][0]==='EV-001'&&!newSheets.Evaluadores[2][0]&&newSheets.Usuarios[1][3]==='hash-original'&&!newSheets.Usuarios[2][0],'No se restauraron las filas nuevas tras fallar el alta');
+    failNewUser=true;
+    await rejects(()=>importEvaluators([newEvaluator,{...newEvaluator,email:'otro2@ejemplo.mx',username:'otro2'}]),'Fallo simulado de creación');
+    assert(!newSheets.Evaluadores[2][0]&&!newSheets.Evaluadores[3][0]&&!newSheets.Usuarios[2][0]&&!newSheets.Usuarios[3][0],'No se restauraron las filas nuevas tras fallar la importación');
+    importEvaluators([newEvaluator]);
+    assert(newSheets.Evaluadores[2][0]==='EV-002'&&newSheets.Usuarios[2][0]==='USR-002','No se guardaron ambas filas al importar');
+    importStudents([{matricula:'=1+1',name:'Nombre',semester:'1',thesis:'=1+2',director:'Director',program:'MCIE'}]);
+    assert(newSheets.Estudiantes[1][1]==="'=1+1"&&newSheets.Estudiantes[1][4]==="'=1+2",'La importación no protege los valores contra fórmulas de hoja');
+    for(const name of ['Evaluadores','Usuarios']){
+      const order=newSheets[name][0].map((_,index)=>index).reverse();
+      newSheets[name]=newSheets[name].map(row=>order.map(index=>row[index]));
+    }
+    saveEvaluator({name:'Con columnas reordenadas',email:'orden@ejemplo.mx',username:'orden',password:'temporal'});
+    const savedEvaluator=table('Evaluadores').find(item=>item.Usuario==='orden');
+    const savedUser=table('Usuarios').find(item=>item.Usuario==='orden');
+    assert(savedEvaluator?.Nombre==='Con columnas reordenadas'&&savedUser?.Rol==='evaluator'&&savedUser.ID_Usuario==='USR-003','El alta debe respetar el orden de las columnas existentes');
     document.getElementById('result').textContent='Todas las pruebas de perfil pasaron.';
   }
   run().catch(error=>{document.getElementById('result').textContent='Error: '+error.message;console.error(error);});

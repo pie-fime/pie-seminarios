@@ -4,6 +4,7 @@
 <body>
 <pre id="result">Ejecutando pruebas...</pre>
 <iframe id="app" title="Aplicación de prueba" hidden></iframe>
+<script src="../backend/Code.gs"></script>
 <script>
   const store=new Map();
   window.testStorage={
@@ -84,6 +85,26 @@
     doc.querySelector('[data-evaluate]').click();
     assert(!doc.querySelector('#evaluationForm [name="observations"]').value,'Se conservó el borrador sin guardar');
     assert((await frame.contentWindow.Admin.load()).students.length===3,'Se borraron datos guardados');
+    const w=frame.contentWindow;
+    w.Auth.saveSession({token:'demo-admin',role:'admin'});
+    w.API.isDemo=()=>false;
+    assert(!w.Auth.getSession(),'El servidor no debe reutilizar la sesión demo');
+    store.set('pie-seminarios-session',JSON.stringify({token:'demo-evaluator',role:'evaluator'}));
+    assert(!w.Auth.getSession()&&!store.has('pie-seminarios-session'),'El servidor no debe reutilizar una sesión demo antigua');
+    w.Auth.saveSession({token:'token-prueba',role:'admin'});
+    w.API.call=async()=>{throw new Error('Fallo simulado');};
+    let failed=false;try{await w.Auth.logout();}catch(error){failed=error.message==='Fallo simulado';}
+    assert(failed&&w.Auth.getSession()?.token==='token-prueba','Una revocación fallida debe conservar la sesión y mostrar el error');
+    let revoked='';
+    w.API.call=async(action,payload,token)=>{revoked=action+':'+token;};
+    await w.Auth.logout();
+    assert(revoked==='logout:token-prueba'&&!w.Auth.getSession(),'No se revocó la sesión antes de borrarla localmente');
+    const rows=[['Token','ID_Usuario','Expira'],['token-prueba','U1',new Date('2100-01-01')],['otro','U1',new Date('2100-01-01')]];
+    window.sh=()=>({getDataRange:()=>({getValues:()=>rows.map(row=>row.slice())}),getRange:(row,column)=>({setValue:value=>{rows[row-1][column-1]=value;}})});
+    window.SpreadsheetApp={flush:()=>{}};
+    revokeSession('token-prueba');
+    assert(rows[1][2].getTime()===0&&rows[2][2].getUTCFullYear()===2100,'El servidor no revocó únicamente la sesión solicitada');
+    assert(revokeSession('token-desconocido').closed,'Cerrar una sesión vencida o inexistente debe ser seguro');
     document.getElementById('result').textContent='Todas las pruebas de cierre de sesión pasaron.';
   }
   run().catch(error=>{document.getElementById('result').textContent='Error: '+error.message;console.error(error);});

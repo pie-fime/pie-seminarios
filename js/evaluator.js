@@ -7,17 +7,19 @@ window.Evaluator = (() => {
     const admin=Admin.forPeriod(source,source.period?.id);
     const evaluator=admin.evaluators.find(e=>e.username===(Auth.getSession()?.username||'evaluador'));
     const assigned=admin.assignments.filter(a=>a.evaluator===evaluator?.id&&a.state==='Activa').map(a=>a.student);
-    const evaluations=admin.evaluations.filter(e=>(e.round||1)===2);
-    return {evaluator,sourceData:source,period:admin.period,evaluations,
-      students:admin.students.filter(s=>s.period===admin.period.id&&assigned.includes(s.id)),
-      completed:evaluations.filter(e=>e.evaluator===evaluator?.id).map(e=>e.student),rubric};
+    const students=admin.students.filter(s=>s.period===admin.period.id&&assigned.includes(s.id));
+    const allEvaluations=admin.evaluations.filter(e=>(e.round||1)===2);
+    const evaluations=allEvaluations.filter(e=>e.evaluator===evaluator?.id&&assigned.includes(e.student));
+    const studentRubrics=students.map(s=>({student:s.id,rubric:allEvaluations.find(e=>e.student===s.id)?.rubric})).filter(item=>item.rubric);
+    return {evaluator,period:admin.period,evaluations,students,studentRubrics,
+      completed:evaluations.map(e=>e.student),rubric};
   }
   function dashboard(data) {
     const pending=data.students.length-(data.completed?.length||0);
     return `<div class="stats-grid">${Admin ? '' : ''}${statCard('Estudiantes asignados',data.students.length)}${statCard('Completadas',data.completed?.length||0)}${statCard('Pendientes',pending)}${statCard('Periodo',data.period?.name||'Sin periodo')}</div>
       <section class="panel"><div class="panel-header"><h2>Estudiantes asignados</h2></div>${table(data)}</section>`;
   }
-  function statCard(label,value) { return `<article class="stat-card"><span>${label}</span><strong>${value}</strong></article>`; }
+  function statCard(label,value) { return `<article class="stat-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`; }
   function canEdit(evaluation,now=new Date()) {
     if(!evaluation?.submittedAt)return false;
     const submitted=new Date(evaluation.submittedAt);
@@ -28,7 +30,7 @@ window.Evaluator = (() => {
     const rows=data.students.map(s=>{
       const done=data.completed.includes(s.id);
       const evaluation=data.evaluations.find(e=>e.student===s.id&&e.evaluator===data.evaluator?.id);
-      return `<tr><td>${s.matricula}</td><td>${s.name}</td><td>${s.thesis}</td><td>${s.director}</td><td><span class="badge ${done?'ok':'warn'}">${done?'Completada':'Pendiente'}</span></td><td><button class="text-button" data-evaluate="${s.id}" data-done="${done}">${done?(canEdit(evaluation)?'Editar':'Consultar'):'Evaluar'}</button></td></tr>`;
+      return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.thesis)}</td><td>${escapeHtml(s.director)}</td><td><span class="badge ${done?'ok':'warn'}">${done?'Completada':'Pendiente'}</span></td><td><button class="text-button" data-evaluate="${escapeHtml(s.id)}" data-done="${done}">${done?(canEdit(evaluation)?'Editar':'Consultar'):'Evaluar'}</button></td></tr>`;
     }).join('');
     return `<div class="table-wrap"><table><thead><tr><th>Matrícula</th><th>Estudiante</th><th>Tesis</th><th>Director // Codirector</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }

@@ -1,8 +1,32 @@
 window.Auth = (() => {
   const TOKEN_KEY = 'pie-seminarios-session';
-  function getSession() { try { return JSON.parse(localStorage.getItem(TOKEN_KEY)); } catch (_) { return null; } }
-  function saveSession(session) { localStorage.setItem(TOKEN_KEY, JSON.stringify(session)); }
-  function clear() { localStorage.removeItem(TOKEN_KEY); }
+  const DEMO_TOKEN_KEY = 'pie-seminarios-demo-session';
+  function sessionKey() { return API.isDemo()?DEMO_TOKEN_KEY:TOKEN_KEY; }
+  function getSession() {
+    try {
+      const saved=localStorage.getItem(sessionKey());
+      if(saved){
+        const session=JSON.parse(saved);
+        if(!API.isDemo()&&['demo-admin','demo-evaluator'].includes(session?.token)){
+          if(!localStorage.getItem(DEMO_TOKEN_KEY))localStorage.setItem(DEMO_TOKEN_KEY,saved);
+          localStorage.removeItem(TOKEN_KEY);
+          return null;
+        }
+        return session;
+      }
+      if(API.isDemo()){
+        const legacy=JSON.parse(localStorage.getItem(TOKEN_KEY));
+        if(legacy&&['demo-admin','demo-evaluator'].includes(legacy.token)){
+          localStorage.setItem(DEMO_TOKEN_KEY,JSON.stringify(legacy));
+          localStorage.removeItem(TOKEN_KEY);
+          return legacy;
+        }
+      }
+      return null;
+    } catch (_) { return null; }
+  }
+  function saveSession(session) { localStorage.setItem(sessionKey(), JSON.stringify(session)); }
+  function clear() { localStorage.removeItem(sessionKey()); }
   async function demoPasswordHash(password,salt) {
     if(!window.crypto?.subtle)throw new Error('El navegador no permite crear cuentas demo; utiliza localhost o HTTPS');
     const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+password));
@@ -51,7 +75,7 @@ window.Auth = (() => {
         return {token:'demo-admin',role:'admin',name:defaultAdmin.name,username:defaultAdmin.username};
       const evaluator=data.evaluators.find(e=>e.id==='EV-001'&&e.username===username&&e.state==='Activo');
       if(evaluator && (evaluator.demoAuth
-        ? await demoPasswordHash(password,evaluator.demoAuth.salt)===evaluator.demoAuth.hash : username==='evaluador'&&password==='evaluador123'))
+        ? await demoPasswordHash(password,evaluator.demoAuth.salt)===evaluator.demoAuth.hash : password==='evaluador123'))
         return {token:'demo-evaluator',role:'evaluator',name:evaluator.name,username:evaluator.username,email:evaluator.email};
       const admin=(data.demoAdmins||[]).find(a=>a.username===username);
       if(admin&&await demoPasswordHash(password,admin.salt)===admin.hash)return {token:'demo-admin',role:'admin',name:admin.name,username:admin.username,email:''};
@@ -99,7 +123,7 @@ window.Auth = (() => {
     const currentValid=credentials?.hash
       ? await demoPasswordHash(profile.currentPassword,credentials.salt)===credentials.hash
       : (admin===defaultAdmin&&username==='admin'&&profile.currentPassword==='admin123') ||
-        (evaluator&&username==='evaluador'&&profile.currentPassword==='evaluador123');
+        (evaluator&&profile.currentPassword==='evaluador123');
     if(!currentValid)throw new Error('La contraseña actual es incorrecta');
     const name=String(profile.name||'').trim(), newUsername=String(profile.username||'').trim();
     if(!name||!newUsername||/\s/.test(newUsername)||name.startsWith('=')||newUsername.startsWith('='))
@@ -120,6 +144,10 @@ window.Auth = (() => {
     const result={name,username:newUsername,email:evaluator?email:''};
     saveSession({...session,...result}); return result;
   }
-  async function logout() { clear(); }
+  async function logout() {
+    const session=getSession();
+    if(!API.isDemo()&&session?.token)await API.call('logout',{},session.token);
+    clear();
+  }
   return { getSession, saveSession, clear, login, logout, getProfile, updateProfile, createDemoAdmin, demoUsernameTaken };
 })();

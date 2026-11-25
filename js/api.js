@@ -1,7 +1,7 @@
 window.API = (() => {
   const CONFIG_KEY = 'pie-seminarios-api-url';
   let baseUrl = localStorage.getItem(CONFIG_KEY) || 'https://script.google.com/macros/s/AKfycbyt_73hwKEzKGJeU_n6xtiume8_xPZegTcde7iRAion-EItTt7B_hUurSHoAZfnVnrM/exec';
-  const demo = window.location.protocol === 'file:' || !baseUrl;
+  const demo = window.location.protocol === 'file:' || new URLSearchParams(window.location.search).get('demo')==='1' || !baseUrl;
 
   function setUrl(url) {
     baseUrl = String(url || '').trim();

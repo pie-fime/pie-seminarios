@@ -8,13 +8,13 @@
 - API: Google Apps Script.
 - Autenticación: usuarios propios con contraseñas hash + sal y tokens de sesión con vencimiento.
 
-La URL de la API puede configurarse en el frontend o guardarse localmente en `pie-seminarios-api-url`. Sin URL configurada, el frontend funciona en modo demostración. La URL incluida en una página publicada es visible para sus visitantes y no debe tratarse como una contraseña.
+La URL de la API puede configurarse en el frontend o guardarse localmente en `pie-seminarios-api-url`. El frontend incluye una URL predeterminada de servidor; para entrar explícitamente al demo añade `?demo=1` a la URL. La URL incluida en una página publicada es visible para sus visitantes y no debe tratarse como una contraseña.
 
 ## Puesta en marcha local
 
 Desde la carpeta del proyecto, ejecutar `python3 -m http.server 8080`.
 
-Abrir `http://localhost:8080`.
+Abrir `http://localhost:8080/?demo=1` para usar datos locales de demostración. Sin `?demo=1`, se usa la URL de servidor configurada, también en localhost.
 
 Modo demostración:
 
@@ -38,7 +38,7 @@ Estas credenciales iniciales son exclusivas del modo demostración y no deben ut
 
 Cada usuario puede actualizar su perfil y contraseña desde **Mi perfil**. Restringe el acceso de edición a la hoja y al proyecto Apps Script. No guardes contraseñas, exportaciones de datos reales ni tokens en el repositorio.
 
-En instalaciones existentes, actualiza `backend/Code.gs` en Apps Script y publica una nueva versión de la aplicación web para habilitar el perfil.
+Para una instalación existente, sigue las precauciones de actualización indicadas abajo; no ejecutes las funciones de inicialización.
 
 ### Hojas creadas
 
@@ -52,11 +52,14 @@ Al enviar una evaluación se guarda una copia de la rúbrica y su resultado. Los
 
 ### Actualizar una hoja existente
 
-1. **Haz una copia de seguridad de todo el archivo de Google Sheets y suspende las capturas durante la actualización.** No ejecutes `setupSheets()` en una hoja existente: borra sus datos.
-2. Actualiza `Code.gs` en Apps Script y ejecuta `migrateRubric()`. La función crea `RubricaActual` si todavía no existe y elimina la hoja `Rubrica` anterior.
-3. La migración **borra las evaluaciones anteriores de escala 1–4 en todas las cohortes**, sin borrar estudiantes, evaluadores ni asignaciones. Conserva las evaluaciones que ya se hayan hecho con la rúbrica 0–100 y sus copias de configuración.
-4. Ejecuta `replaceRubricWithDefault()` para instalar los nueve aspectos aprobados. **Esto reemplaza la configuración actual de `RubricaActual`**, incluyendo cualquier edición personalizada, pero no borra evaluaciones. Los alumnos con evaluaciones ya enviadas continúan usando su copia de rúbrica.
-5. Publica una nueva versión de la aplicación web de Apps Script y actualiza el frontend antes de reanudar las capturas. Si la migración falla, revisa el error y restaura la copia antes de reintentar; no elimines columnas ni hojas manualmente para forzarla.
+1. **Haz una copia de seguridad de todo el archivo de Google Sheets y suspende las capturas y la edición manual durante la actualización.** No ejecutes `setupSheets()` en una hoja existente: borra sus datos.
+2. Prueba primero en una copia independiente de la hoja y del proyecto Apps Script. Esta actualización no requiere ejecutar migraciones para hojas ya compatibles.
+3. Actualiza `Code.gs`, publica una nueva versión de la aplicación web y actualiza el frontend de forma coordinada antes de reanudar las capturas. El frontend y el backend nuevos deben instalarse juntos para conservar la selección de rúbrica del evaluador.
+4. Comprueba el acceso, las asignaciones, evaluaciones y reportes con datos de prueba. Si hay un error de escritura o restauración, detén las capturas y revisa las hojas y la copia de seguridad antes de reintentar.
+
+Las operaciones en varias hojas usan compensaciones ante errores, **no transacciones**: si también falla la restauración, pueden quedar cambios parciales. Los borrados múltiples y la desactivación de cuentas asociada al borrado de evaluadores conservan su comportamiento anterior y también pueden quedar incompletos si ocurre un error. Mantén respaldos y revisa el estado antes de reintentar.
+
+Las funciones de migración son independientes de esta actualización. En particular, `migrateRubric()` elimina la hoja `Rubrica` anterior y borra las evaluaciones antiguas de escala 1–4 en todos los periodos; `replaceRubricWithDefault()` reemplaza la configuración de `RubricaActual`. No las ejecutes sin evaluar su necesidad, respaldar los datos y autorizar explícitamente esos cambios.
 
 ## Conectar el frontend
 
@@ -96,6 +99,7 @@ Escenarios manuales mínimos:
 - Abrir `tests/assignments.html` en un navegador para probar asignaciones parciales y protección de evaluaciones enviadas.
 - Abrir `tests/reports.html` en un navegador para comprobar los nombres en los comentarios del reporte.
 - Abrir `tests/evaluation-edit.html` en un navegador para comprobar la edición de evaluaciones y su límite diario.
+- Abrir `tests/logout.html` en un navegador para comprobar el cierre y la revocación de sesiones simuladas.
 - Inicio de sesión de administrador y evaluador.
 - Actualización del perfil propio y cambio de contraseña con verificación de la contraseña actual.
 - Registro e importación CSV de estudiantes.

@@ -227,20 +227,7 @@ window.Reports = (() => {
     return String(value||'reporte').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'reporte';
   }
   function download(report) {
-    const csv=report.csvRows.map(row=>row.map(csvCell).join(',')).join('\r\n');
-    const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'});
-    const link=document.createElement('a');
-    const url=URL.createObjectURL(blob);
-    link.href=url;
-    link.download=report.filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }
-  function csvCell(value) {
-    const text=String(value??'');
-    return /[",\r\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+    Csv.download(report.csvRows,report.filename);
   }
 
   return {load,workspace,createReport,download};

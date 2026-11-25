@@ -39,6 +39,11 @@
       doc.getElementById('loginForm').requestSubmit();
       await waitFor(()=>doc.querySelector('[data-view="assignments"]'));
       const data=await w.Admin.load();
+      const dangerous='Texto "citado" <img src=x>';
+      const studentForm=new DOMParser().parseFromString(w.Admin.studentForm(data,{thesis:dangerous}),'text/html');
+      assert(studentForm.querySelector('[name="thesis"]').value===dangerous&&!studentForm.querySelector('img'),'El formulario no conserva y escapa el título');
+      const dashboard=new DOMParser().parseFromString(w.Evaluator.dashboard({students:[{id:'S1',name:dangerous,thesis:dangerous}],completed:[],evaluations:[],period:{name:dangerous}}),'text/html');
+      assert(!dashboard.querySelector('img')&&dashboard.querySelector('tbody').textContent.includes(dangerous),'La tabla del evaluador no escapa los datos');
       data.students.push({id:'EST-004',matricula:'999',name:'Estudiante nuevo',thesis:'Tesis <prueba>',director:'Director & asesor',period:data.period.id});
       data.evaluators.push({id:'EV-004',name:'Evaluador nuevo',username:'nuevo',state:'Activo'});
       data.assignments.push({id:'AS-10',student:'EST-004',evaluator:'EV-003',state:'Inactiva'});
@@ -78,15 +83,22 @@
 
       const headers=['Estado','ID_Evaluador','ID_Periodo','ID_Asignacion','Fecha_Asignacion','ID_Estudiante'];
       const rows=[headers];
-      let serial=0,evaluations=[];
+      let serial=0,evaluations=[],failStateWrite=false;
       const evaluators=['E1','E2','E3','E4'].map(id=>({id,state:id==='E4'?'Inactivo':'Activo'}));
       window.dashboard=()=>({period:{id:'P1'},students:[{id:'S1'}],evaluators,
         assignments:rows.slice(1).map(r=>({state:r[0],evaluator:r[1],student:r[5]})),evaluations});
       window.sh=()=>({
         getDataRange:()=>({getValues:()=>rows.map(row=>row.slice())}),
-        getRange:(row,column)=>({setValue:value=>{rows[row-1][column-1]=value;}}),
-        appendRow:row=>rows.push(row)
+        getLastRow:()=>rows.reduce((last,row,index)=>row.some(value=>value!=='')?index+1:last,0),
+        getRange:(row,column,height=1,width=1)=>({
+          setValue:value=>{rows[row-1][column-1]=value;if(failStateWrite){failStateWrite=false;throw new Error('Fallo simulado');}},
+          getFormula:()=>'',getValues:()=>Array.from({length:height},(_,i)=>rows[row-1+i]?.slice(column-1,column-1+width)||Array(width).fill('')),
+          getFormulas:()=>Array.from({length:height},()=>Array(width).fill('')),
+          setValues:values=>{values.forEach((value,i)=>{rows[row-1+i]=value.slice();});},
+          clearContent:()=>{for(let i=0;i<height;i++)rows[row-1+i]=Array(width).fill('');}
+        })
       });
+      window.SpreadsheetApp={flush:()=>{}};
       window.nextId=()=>`AS-${++serial}`;
       const rejects=(ids,message)=>{
         let failed=false;
@@ -104,6 +116,9 @@
       saveAssignment('S1',['E1','E3']);
       assert(rows.some(r=>r[0]==='Inactiva'&&r[1]==='E2')&&rows.some(r=>r[0]==='Activa'&&r[1]==='E3'),'No se reemplazó el evaluador pendiente');
       assert(rows.some(r=>r[0]==='Activa'&&r[1]==='E1'),'Se alteró la asignación evaluada');
+      failStateWrite=true;
+      rejects(['E1','E2'],'Fallo simulado');
+      assert(rows.some(r=>r[0]==='Activa'&&r[1]==='E3')&&!rows.some(r=>r[0]==='Activa'&&r[1]==='E2'),'No se restauraron las asignaciones tras un fallo');
       rejects([],'ya envió');
       evaluations=[];
       saveAssignment('S1',[]);

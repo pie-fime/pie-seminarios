@@ -44,7 +44,7 @@ window.Csv = (() => {
   }
   function cell(value) {
     const raw=String(value??'');
-    const text=/^[\t\r=+\-@]/.test(raw)?`'${raw}`:raw;
+    const text=/^[\t\r\n]|^[\t\r\n ]*[=+\-@]/.test(raw)?`'${raw}`:raw;
     return /[",\r\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
   }
   return {parse,download};

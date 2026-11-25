@@ -87,7 +87,7 @@ window.Admin = (() => {
       <p class="muted" style="margin:12px 0 0">${completed} completadas · ${pending} pendientes</p>
     </section>`;
   }
-  function stat(label,value) { return `<article class="stat-card"><span>${label}</span><strong>${value}</strong></article>`; }
+  function stat(label,value) { return `<article class="stat-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`; }
   function table(headers, rows) {
     const body = Array.isArray(rows) ? rows.join('') : rows;
     return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
@@ -246,12 +246,13 @@ window.Admin = (() => {
   }
   function evaluatorForm(evaluator={}) {
     return `<form id="evaluatorForm" class="form-grid">
+      <input type="hidden" name="id" value="${escapeHtml(evaluator.id||'')}">
       ${field('Nombre completo','name',evaluator.name||'',true)}${field('Correo','email',evaluator.email||'',true)}
-      ${field('Usuario','username',evaluator.username||'',true)}${field('Contraseña temporal','password','',!evaluator.id,'',true)}
+      ${field('Usuario','username',evaluator.username||'',true)}${evaluator.id?'':field('Contraseña temporal','password','',true,'',true)}
       <div class="full"><button class="button primary" type="submit">Guardar evaluador</button></div></form>`;
   }
   function field(label,name,value,required=false,extra='',password=false) {
-    return `<label>${label}<input name="${name}" value="${value}" ${required?'required':''} ${password?'type="password"':''}></label>`.replace('<label>',`<label class="${extra}">`);
+    return `<label>${label}<input name="${name}" value="${escapeHtml(value)}" ${required?'required':''} ${password?'type="password"':''}></label>`.replace('<label>',`<label class="${extra}">`);
   }
   return {load,loadManagement,saveDemo,nextDemoId,forPeriod,dashboard,periods,periodForm,administrators,administratorForm,students,studentRows,evaluators,evaluatorRows,assignments,studentForm,evaluatorForm,formatDate};
 })();

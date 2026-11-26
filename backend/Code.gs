@@ -1,6 +1,6 @@
 const DEFAULT_CRITERIA = [
   {
-    id:'N1', num:1, weight:15,
+    id:'C1', num:1, weight:15,
     name:'Pertinencia e innovación del tema',
     scope:'Evalúa si el tema aporta valor real al área de ingeniería eléctrica y si existe una brecha de conocimiento claramente identificada.',
     levels:[
@@ -15,7 +15,7 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N2', num:2, weight:15,
+    id:'C2', num:2, weight:20,
     name:'Estado del arte actualizado',
     scope:'Evalúa la cobertura, actualidad y análisis crítico de la literatura científica revisada.',
     levels:[
@@ -30,22 +30,22 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N3', num:3, weight:15,
-    name:'Metodología',
-    scope:'Evalúa el rigor científico-técnico del enfoque metodológico y su adecuación para comprobar la hipótesis.',
+    id:'C3', num:3, weight:20,
+    name:'Metodología y seguimiento del plan de trabajo',
+    scope:'Evalúa el rigor científico-técnico del enfoque metodológico, su adecuación para comprobar la hipótesis, y el cumplimiento del cronograma de investigación presentado.',
     levels:[
       {cls:'S',lbl:'Sobresaliente',rng:'90–100',
-       desc:'La metodología es coherente con la hipótesis y los objetivos. Los métodos seleccionados (matemáticos, computacionales, experimentales) son apropiados para el problema y se justifica cada decisión.'},
+       desc:'La metodología es coherente con la hipótesis y los objetivos. Los métodos seleccionados (matemáticos, computacionales, experimentales) son los apropiados para el problema y se justifica cada decisión. Se presenta un cronograma claro con etapas definidas, y el avance reportado es consistente con lo planificado (≥ 90% de las actividades del período completadas).'},
       {cls:'B',lbl:'Satisfactorio',rng:'70–89',
-       desc:'La metodología es adecuada y los métodos están identificados, aunque la justificación de su elección es parcial.'},
+       desc:'La metodología es adecuada y los métodos están identificados, aunque la justificación de su elección es parcial. El cronograma existe y es comprensible; el avance presenta retrasos menores (70–89% de las actividades del período completadas) con explicación razonable.'},
       {cls:'D',lbl:'En desarrollo',rng:'50–69',
-       desc:'La metodología está descrita de manera general sin detallar métodos específicos.'},
+       desc:'La metodología está descrita de manera general sin detallar métodos específicos. El cronograma es vago o poco realista, o el avance muestra retrasos significativos (50–69% completado) sin justificación.'},
       {cls:'I',lbl:'Insuficiente',rng:'0–49',
-       desc:'La metodología es inapropiada o está ausente.'}
+       desc:'La metodología es inapropiada o está ausente. No se presenta cronograma o el avance real es menor al 50% de lo planificado para el período sin ninguna justificación.'}
     ]
   },
   {
-    id:'N4', num:4, weight:10,
+    id:'C4', num:4, weight:10,
     name:'Formalidad del marco teórico',
     scope:'Evalúa el sustento conceptual y la rigurosidad en el uso de fundamentos matemáticos, físicos o computacionales propios del área.',
     levels:[
@@ -60,7 +60,7 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N5', num:5, weight:20,
+    id:'C5', num:5, weight:20,
     name:'Resultados presentados',
     scope:'Evalúa la calidad, pertinencia y análisis de los resultados obtenidos (simulaciones, experimentos, análisis de datos).',
     levels:[
@@ -75,48 +75,7 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N7', num:6, weight:5,
-    name:'Claridad en la presentación y comunicación efectiva',
-    scope:'Evalúa la organización, legibilidad y comunicación durante la exposición.',
-    levels:[
-      {cls:'S',lbl:'Sobresaliente',rng:'90–100',
-       desc:'Las diapositivas son limpias, con jerarquía visual clara y sin exceso de texto. El expositor domina el tema, mantiene contacto visual y responde con solvencia las preguntas del comité.'},
-      {cls:'B',lbl:'Satisfactorio',rng:'70–89',
-       desc:'La presentación es ordenada y el expositor se expresa con claridad, aunque con algunas láminas sobrecargadas. Las respuestas al comité son adecuadas.'},
-      {cls:'D',lbl:'En desarrollo',rng:'50–69',
-       desc:'La presentación presenta problemas de orden o legibilidad. El expositor lee de las diapositivas o muestra inseguridad ante preguntas del comité.'},
-      {cls:'I',lbl:'Insuficiente',rng:'0–49',
-       desc:'La presentación es desorganizada, las diapositivas son ilegibles o el expositor no demuestra dominio suficiente del tema.'}
-    ]
-  },
-  {
-    id:'N8', num:7, weight:5,
-    name:'Seguimiento del plan de trabajo',
-    scope:'Evalúa la claridad del cronograma y el avance respecto a las actividades planificadas.',
-    levels:[
-      {cls:'S',lbl:'Sobresaliente',rng:'90–100',
-       desc:'Se presenta un cronograma claro con etapas definidas, y el avance reportado es consistente con lo planificado (90% o más de las actividades del período completadas).'},
-      {cls:'B',lbl:'Satisfactorio',rng:'70–89',
-       desc:'El cronograma existe y es comprensible; el avance presenta retrasos menores (70–89% de las actividades del período completadas) con explicación razonable.'},
-      {cls:'D',lbl:'En desarrollo',rng:'50–69',
-       desc:'El cronograma es vago o poco realista, o el avance muestra retrasos significativos (50–69% completado) sin justificación.'},
-      {cls:'I',lbl:'Insuficiente',rng:'0–49',
-       desc:'No se presenta cronograma o el avance real es menor al 50% de lo planificado para el período sin ninguna justificación.'}
-    ]
-  },
-  {
-    id:'N9', num:8, weight:5, slider:true,
-    name:'Tiempo de presentación',
-    scope:'Evalúa la duración de la presentación de acuerdo con los rangos indicados.',
-    levels:[
-      {cls:'S',lbl:'Sobresaliente',rng:'90–100',desc:'10 minutos o menos.'},
-      {cls:'B',lbl:'Satisfactorio',rng:'70–89',desc:'Más de 10 minutos y menos de 11 minutos.'},
-      {cls:'D',lbl:'En desarrollo',rng:'50–69',desc:'De 11 a 15 minutos, inclusive.'},
-      {cls:'I',lbl:'Insuficiente',rng:'0–49',desc:'Más de 15 minutos.'}
-    ]
-  },
-  {
-    id:'N6', num:9, weight:10,
+    id:'C6', num:6, weight:10,
     name:'Conclusiones',
     scope:'Evalúa si las conclusiones responden a los objetivos y la hipótesis, e identifican trabajo futuro.',
     levels:[
@@ -129,12 +88,27 @@ const DEFAULT_CRITERIA = [
       {cls:'I',lbl:'Insuficiente',rng:'0–49',
        desc:'Las conclusiones están ausentes, son triviales o contradicen los resultados presentados.'}
     ]
+  },
+  {
+    id:'C7', num:7, weight:5, hasTimePenalty:true,
+    name:'Claridad en la presentación y comunicación efectiva',
+    scope:'Evalúa la organización, legibilidad y manejo del tiempo durante la exposición. Incluye penalización por incumplimiento del tiempo asignado (10 min).',
+    levels:[
+      {cls:'S',lbl:'Sobresaliente',rng:'90–100',
+       desc:'Las diapositivas son limpias, con jerarquía visual clara y sin exceso de texto. El expositor domina el tema, mantiene contacto visual y responde con solvencia las preguntas del Comité. Se respeta el tiempo asignado (dentro del margen de ±1 min).'},
+      {cls:'B',lbl:'Satisfactorio',rng:'70–89',
+       desc:'La presentación es ordenada y el expositor se expresa con claridad, aunque con algunas láminas sobrecargadas. Las respuestas al comité son adecuadas. Se respeta el tiempo con un desvío de entre 1 y 2 minutos.'},
+      {cls:'D',lbl:'En desarrollo',rng:'50–69',
+       desc:'La presentación presenta problemas de orden o legibilidad. El expositor lee de las diapositivas o muestra inseguridad ante preguntas del comité.'},
+      {cls:'I',lbl:'Insuficiente',rng:'0–49',
+       desc:'La presentación es desorganizada, las diapositivas son ilegibles o el expositor no demuestra dominio suficiente del tema.'}
+    ]
   }
 ];
 
 const SHEETS = ['Periodos','Estudiantes','Evaluadores','Asignaciones','Evaluaciones','Usuarios','Configuracion','RubricaActual','Sesiones'];
 const NEW_EVALUATION_HEADERS=['Ronda','Rubrica_JSON','Calificaciones_JSON','Calificaciones_Originales_JSON','Tiempo_JSON','Observaciones_Criterios_JSON'];
-const RUBRIC_HEADERS=['ID_Criterio','Nombre','Alcance','Sobresaliente','Satisfactorio','En_desarrollo','Insuficiente','Ponderacion','Activo','Deslizador'];
+const RUBRIC_HEADERS=['ID_Criterio','Nombre','Alcance','Sobresaliente','Satisfactorio','En_desarrollo','Insuficiente','Ponderacion','Activo','Deslizador','Penalizacion_Tiempo'];
 const STUDENT_HEADERS=['ID_Estudiante','Matricula','Nombre','Semestre','Titulo_Tesis','Director_Tesis','ID_Periodo','Estado','Programa'];
 
 function setupSheets() {
@@ -170,7 +144,7 @@ function writeDefaultRubric(sheet){
   const headers=sheet.getDataRange().getValues()[0];
   if(RUBRIC_HEADERS.some(h=>!headers.includes(h)))throw new Error('Faltan columnas en RubricaActual');
   const rows=DEFAULT_CRITERIA.map(c=>{
-    const record={ID_Criterio:c.id,Nombre:c.name,Alcance:c.scope,Sobresaliente:c.levels[0].desc,Satisfactorio:c.levels[1].desc,En_desarrollo:c.levels[2].desc,Insuficiente:c.levels[3].desc,Ponderacion:c.weight/100,Penalizacion_Tiempo:false,Activo:true,Deslizador:!!c.slider};
+    const record={ID_Criterio:c.id,Nombre:c.name,Alcance:c.scope,Sobresaliente:c.levels[0].desc,Satisfactorio:c.levels[1].desc,En_desarrollo:c.levels[2].desc,Insuficiente:c.levels[3].desc,Ponderacion:c.weight/100,Activo:true,Deslizador:!!c.slider,Penalizacion_Tiempo:!!c.hasTimePenalty};
     return headers.map(h=>record[h]===undefined?'':record[h]);
   });
   sheet.getRange(2,1,rows.length,rows[0].length).setValues(rows);
@@ -180,8 +154,12 @@ function replaceRubricWithDefault(){
     const sheet=sh('RubricaActual');
     if(!sheet)throw new Error('Falta la hoja RubricaActual; ejecuta primero migrateRubric()');
     const headers=sheet.getDataRange().getValues()[0];
-    if(RUBRIC_HEADERS.filter(h=>h!=='Deslizador').some(h=>!headers.includes(h)))throw new Error('Faltan columnas en RubricaActual');
-    if(!headers.includes('Deslizador'))sheet.getRange(1,headers.length+1).setValue('Deslizador');
+    const optional=['Deslizador','Penalizacion_Tiempo'];
+    if(RUBRIC_HEADERS.some(h=>!optional.includes(h)&&!headers.includes(h)))throw new Error('Faltan columnas en RubricaActual');
+    const missing=optional.filter(h=>!headers.includes(h));
+    if(missing.length) {
+      sheet.getRange(1,headers.length+1,1,missing.length).setValues([missing]);
+    }
     const lastRow=sheet.getLastRow(),lastColumn=sheet.getLastColumn();
     writeDefaultRubric(sheet);
     if(lastRow>DEFAULT_CRITERIA.length+1)sheet.getRange(DEFAULT_CRITERIA.length+2,1,lastRow-DEFAULT_CRITERIA.length-1,lastColumn).clearContent();
@@ -452,7 +430,7 @@ function getRubric(validate=true){
   const rubric=table('RubricaActual').filter(r=>r.Activo===true||r.Activo==='TRUE'||r.Activo==='Sí').map(r=>({
     id:String(r.ID_Criterio||'').trim(),name:String(r.Nombre||'').trim(),scope:String(r.Alcance||''),weight:r.Ponderacion===''?NaN:Number(r.Ponderacion),
     levels:[{lbl:'Sobresaliente',rng:'90–100',desc:r.Sobresaliente},{lbl:'Satisfactorio',rng:'70–89',desc:r.Satisfactorio},{lbl:'En desarrollo',rng:'50–69',desc:r.En_desarrollo},{lbl:'Insuficiente',rng:'0–49',desc:r.Insuficiente}],
-    hasTimePenalty:false,
+    hasTimePenalty:r.Penalizacion_Tiempo===true||r.Penalizacion_Tiempo==='TRUE'||r.Penalizacion_Tiempo==='Sí',
     slider:r.Deslizador===true||r.Deslizador==='TRUE'||r.Deslizador==='Sí'}));
   if(validate&&(!rubric.length||new Set(rubric.map(c=>c.id)).size!==rubric.length||rubric.some(c=>!/^[A-Za-z][A-Za-z0-9_-]*$/.test(c.id)||!c.name||!Number.isFinite(c.weight)||c.weight<0||c.levels.some(l=>!l.desc))||Math.abs(rubric.reduce((sum,c)=>sum+c.weight,0)-1)>0.0001))throw new Error('La rúbrica actual es inválida: revisa IDs, descriptores y ponderaciones');
   return rubric;
@@ -749,9 +727,9 @@ function submitEvaluation(session,body,editing=false){
   if(!rubric||JSON.stringify(rubric)!==JSON.stringify(body.rubric))throw new Error('La rúbrica cambió; abre de nuevo el formulario');
   const raw={},criteria={},time=body.time||{},observations=body.criterionObservations||duplicate?.criterionObservations||{};
   let penalty=0;
-  if(rubric.some(c=>c.hasTimePenalty)&&(time.minutes!==''||time.seconds!=='')){
-    const assigned=Number(time.assigned),minutes=Number(time.minutes),seconds=time.seconds===''?0:Number(time.seconds);
-    if(time.assigned===''||time.minutes===''||!Number.isInteger(assigned)||assigned<1||assigned>120||!Number.isInteger(minutes)||minutes<0||minutes>120||!Number.isInteger(seconds)||seconds<0||seconds>59)throw new Error('Revisa los tiempos de presentación');
+  if(rubric.some(c=>c.hasTimePenalty)){
+    const assigned=Number(time.assigned),minutes=Number(time.minutes),seconds=time.seconds===''||time.seconds==null?0:Number(time.seconds);
+    if(Number(time.assigned)!==10||time.minutes===''||!Number.isInteger(assigned)||!Number.isInteger(minutes)||minutes<0||minutes>120||!Number.isInteger(seconds)||seconds<0||seconds>59)throw new Error('Registra un tiempo real válido para la presentación de 10 minutos');
     const deviation=Math.abs(minutes*60+seconds-assigned*60);
     penalty=deviation<=60?0:deviation<=180?10:deviation<=300?20:40;
   }

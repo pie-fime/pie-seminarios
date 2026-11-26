@@ -40,8 +40,12 @@
       assert(!w.Evaluator.canEdit({submittedAt:'fecha inválida'},afterMidnight),'Una fecha inválida no debe permitir edición');
 
       const data=await w.Admin.load(),rubric=w.Evaluator.getRubric(),submittedAt=new Date().toISOString();
+      assert(rubric.length===7&&rubric.map(c=>c.id).join(',')==='C1,C2,C3,C4,C5,C6,C7','La rúbrica debe contener los siete criterios del PDF en orden');
+      assert(rubric.map(c=>c.weight).join(',')==='0.15,0.2,0.2,0.1,0.2,0.1,0.05','Las ponderaciones deben coincidir con el PDF');
+      assert(rubric[6].hasTimePenalty,'El criterio 7 debe incluir la penalización por tiempo');
+      assert(w.Calculations.penalty(10,9,0)===0&&w.Calculations.penalty(10,11,0)===0&&w.Calculations.penalty(10,11,1)===10&&w.Calculations.penalty(10,13,0)===10&&w.Calculations.penalty(10,13,1)===20&&w.Calculations.penalty(10,15,0)===20&&w.Calculations.penalty(10,15,1)===40,'Los rangos de penalización deben coincidir con el PDF');
       const criteria=Object.fromEntries(rubric.map(c=>[c.id,80]));
-      data.evaluations.push({student:'EST-001',evaluator:'EV-001',period:data.period.id,round:2,submittedAt,individual:80,criteria,rawCriteria:criteria,observations:'Antes',rubric});
+      data.evaluations.push({student:'EST-001',evaluator:'EV-001',period:data.period.id,round:2,submittedAt,individual:80,criteria,rawCriteria:criteria,observations:'Antes',rubric,time:{assigned:10,minutes:10,seconds:0}});
       w.Admin.saveDemo(data);
       doc.getElementById('username').value='evaluador';doc.getElementById('password').value='evaluador123';
       doc.getElementById('loginForm').requestSubmit();
@@ -70,11 +74,19 @@
       doc.getElementById('modalClose').click();
       doc.querySelector('[data-evaluate="EST-002"]').click();
       const newForm=doc.getElementById('evaluationForm');
-      newForm.querySelectorAll('[data-score-slider]').forEach(slider=>slider.dispatchEvent(new w.Event('input',{bubbles:true})));
+      assert(newForm.elements.timeMinutes.required,'La duración real debe ser obligatoria para calcular la penalización');
+      newForm.querySelectorAll('[data-score-slider]').forEach(slider=>{
+        slider.value='80';
+        slider.dispatchEvent(new w.Event('input',{bubbles:true}));
+      });
+      newForm.elements.timeMinutes.value='12';
+      newForm.elements.timeSeconds.value='0';
       newForm.requestSubmit();
       await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
       saved=await w.Admin.load();
-      assert(saved.evaluations.length===2&&w.Evaluator.canEdit(saved.evaluations.find(e=>e.student==='EST-002')),'Una evaluación nueva debe guardarse con fecha y quedar editable');
+      const newEvaluation=saved.evaluations.find(e=>e.student==='EST-002');
+      assert(saved.evaluations.length===2&&w.Evaluator.canEdit(newEvaluation),'Una evaluación nueva debe guardarse con fecha y quedar editable');
+      assert(Number(newEvaluation.rawCriteria.C7)===80&&newEvaluation.criteria.C7===70&&newEvaluation.individual===79.5,'La penalización debe aplicarse solo al puntaje del criterio 7 antes de ponderar');
       const otherRubric=[{id:'OTRO',name:'Rúbrica anterior',weight:1,levels:[]}];
       saved.evaluations.push({student:'EST-003',evaluator:'EV-002',period:saved.period.id,round:2,rubric:otherRubric,observations:'Privado'});
       w.Admin.saveDemo(saved);
@@ -98,6 +110,16 @@
       assert(rows.length===2&&rows[1][4]===90&&rows[1][5]==='Actualizada'&&rows[1][6]===timestamp&&rows[1][13]==='{"C1":"conservar"}'&&rows[1][14]==='=1+1','El servidor debe conservar fecha, observaciones y fórmulas no editadas');
       submitEvaluation({username:'evaluador'},{...body,observations:'=1+1'},true);
       assert(rows[1][5]==="'=1+1",'Las observaciones no deben convertirse en fórmulas');
+      const timeRubric=[{id:'C7',name:'Presentación',weight:1,hasTimePenalty:true}];
+      rows[1][9]=JSON.stringify(timeRubric);
+      rows[1][10]='{"C7":80}';
+      rows[1][11]='{"C7":80}';
+      const timedBody={studentId:'S1',rubric:timeRubric,rawCriteria:{C7:80},time:{assigned:'10',minutes:'12',seconds:'0'}};
+      submitEvaluation({username:'evaluador'},timedBody,true);
+      assert(rows[1][4]===70&&rows[1][10]==='{"C7":70}','El servidor debe descontar la penalización del criterio de comunicación');
+      let missingTimeRejected=false;
+      try{submitEvaluation({username:'evaluador'},{...timedBody,time:{assigned:'10',minutes:'',seconds:''}},true);}catch(error){missingTimeRejected=error.message.includes('tiempo real válido');}
+      assert(missingTimeRejected,'El servidor debe exigir el tiempo real para aplicar la penalización');
       const rejects=(session,editing,message)=>{
         let failed=false;try{submitEvaluation(session,body,editing);}catch(error){failed=error.message.includes(message);}
         assert(failed,'Se esperaba el error: '+message);

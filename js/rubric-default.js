@@ -1,6 +1,6 @@
 const DEFAULT_CRITERIA = [
   {
-    id:'N1', num:1, weight:15,
+    id:'C1', num:1, weight:15,
     name:'Pertinencia e innovación del tema',
     scope:'Evalúa si el tema aporta valor real al área de ingeniería eléctrica y si existe una brecha de conocimiento claramente identificada.',
     levels:[
@@ -15,7 +15,7 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N2', num:2, weight:15,
+    id:'C2', num:2, weight:20,
     name:'Estado del arte actualizado',
     scope:'Evalúa la cobertura, actualidad y análisis crítico de la literatura científica revisada.',
     levels:[
@@ -30,22 +30,22 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N3', num:3, weight:15,
-    name:'Metodología',
-    scope:'Evalúa el rigor científico-técnico del enfoque metodológico y su adecuación para comprobar la hipótesis.',
+    id:'C3', num:3, weight:20,
+    name:'Metodología y seguimiento del plan de trabajo',
+    scope:'Evalúa el rigor científico-técnico del enfoque metodológico, su adecuación para comprobar la hipótesis, y el cumplimiento del cronograma de investigación presentado.',
     levels:[
       {cls:'S',lbl:'Sobresaliente',rng:'90–100',
-       desc:'La metodología es coherente con la hipótesis y los objetivos. Los métodos seleccionados (matemáticos, computacionales, experimentales) son apropiados para el problema y se justifica cada decisión.'},
+       desc:'La metodología es coherente con la hipótesis y los objetivos. Los métodos seleccionados (matemáticos, computacionales, experimentales) son los apropiados para el problema y se justifica cada decisión. Se presenta un cronograma claro con etapas definidas, y el avance reportado es consistente con lo planificado (≥ 90% de las actividades del período completadas).'},
       {cls:'B',lbl:'Satisfactorio',rng:'70–89',
-       desc:'La metodología es adecuada y los métodos están identificados, aunque la justificación de su elección es parcial.'},
+       desc:'La metodología es adecuada y los métodos están identificados, aunque la justificación de su elección es parcial. El cronograma existe y es comprensible; el avance presenta retrasos menores (70–89% de las actividades del período completadas) con explicación razonable.'},
       {cls:'D',lbl:'En desarrollo',rng:'50–69',
-       desc:'La metodología está descrita de manera general sin detallar métodos específicos.'},
+       desc:'La metodología está descrita de manera general sin detallar métodos específicos. El cronograma es vago o poco realista, o el avance muestra retrasos significativos (50–69% completado) sin justificación.'},
       {cls:'I',lbl:'Insuficiente',rng:'0–49',
-       desc:'La metodología es inapropiada o está ausente.'}
+       desc:'La metodología es inapropiada o está ausente. No se presenta cronograma o el avance real es menor al 50% de lo planificado para el período sin ninguna justificación.'}
     ]
   },
   {
-    id:'N4', num:4, weight:10,
+    id:'C4', num:4, weight:10,
     name:'Formalidad del marco teórico',
     scope:'Evalúa el sustento conceptual y la rigurosidad en el uso de fundamentos matemáticos, físicos o computacionales propios del área.',
     levels:[
@@ -60,7 +60,7 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N5', num:5, weight:20,
+    id:'C5', num:5, weight:20,
     name:'Resultados presentados',
     scope:'Evalúa la calidad, pertinencia y análisis de los resultados obtenidos (simulaciones, experimentos, análisis de datos).',
     levels:[
@@ -75,48 +75,7 @@ const DEFAULT_CRITERIA = [
     ]
   },
   {
-    id:'N7', num:6, weight:5,
-    name:'Claridad en la presentación y comunicación efectiva',
-    scope:'Evalúa la organización, legibilidad y comunicación durante la exposición.',
-    levels:[
-      {cls:'S',lbl:'Sobresaliente',rng:'90–100',
-       desc:'Las diapositivas son limpias, con jerarquía visual clara y sin exceso de texto. El expositor domina el tema, mantiene contacto visual y responde con solvencia las preguntas del comité.'},
-      {cls:'B',lbl:'Satisfactorio',rng:'70–89',
-       desc:'La presentación es ordenada y el expositor se expresa con claridad, aunque con algunas láminas sobrecargadas. Las respuestas al comité son adecuadas.'},
-      {cls:'D',lbl:'En desarrollo',rng:'50–69',
-       desc:'La presentación presenta problemas de orden o legibilidad. El expositor lee de las diapositivas o muestra inseguridad ante preguntas del comité.'},
-      {cls:'I',lbl:'Insuficiente',rng:'0–49',
-       desc:'La presentación es desorganizada, las diapositivas son ilegibles o el expositor no demuestra dominio suficiente del tema.'}
-    ]
-  },
-  {
-    id:'N8', num:7, weight:5,
-    name:'Seguimiento del plan de trabajo',
-    scope:'Evalúa la claridad del cronograma y el avance respecto a las actividades planificadas.',
-    levels:[
-      {cls:'S',lbl:'Sobresaliente',rng:'90–100',
-       desc:'Se presenta un cronograma claro con etapas definidas, y el avance reportado es consistente con lo planificado (90% o más de las actividades del período completadas).'},
-      {cls:'B',lbl:'Satisfactorio',rng:'70–89',
-       desc:'El cronograma existe y es comprensible; el avance presenta retrasos menores (70–89% de las actividades del período completadas) con explicación razonable.'},
-      {cls:'D',lbl:'En desarrollo',rng:'50–69',
-       desc:'El cronograma es vago o poco realista, o el avance muestra retrasos significativos (50–69% completado) sin justificación.'},
-      {cls:'I',lbl:'Insuficiente',rng:'0–49',
-       desc:'No se presenta cronograma o el avance real es menor al 50% de lo planificado para el período sin ninguna justificación.'}
-    ]
-  },
-  {
-    id:'N9', num:8, weight:5, slider:true,
-    name:'Tiempo de presentación',
-    scope:'Evalúa la duración de la presentación de acuerdo con los rangos indicados.',
-    levels:[
-      {cls:'S',lbl:'Sobresaliente',rng:'90–100',desc:'10 minutos o menos.'},
-      {cls:'B',lbl:'Satisfactorio',rng:'70–89',desc:'Más de 10 minutos y menos de 11 minutos.'},
-      {cls:'D',lbl:'En desarrollo',rng:'50–69',desc:'De 11 a 15 minutos, inclusive.'},
-      {cls:'I',lbl:'Insuficiente',rng:'0–49',desc:'Más de 15 minutos.'}
-    ]
-  },
-  {
-    id:'N6', num:9, weight:10,
+    id:'C6', num:6, weight:10,
     name:'Conclusiones',
     scope:'Evalúa si las conclusiones responden a los objetivos y la hipótesis, e identifican trabajo futuro.',
     levels:[
@@ -128,6 +87,21 @@ const DEFAULT_CRITERIA = [
        desc:'Las conclusiones son un resumen del trabajo sin aportar juicio crítico. No se establece relación con la hipótesis ni con los objetivos específicos.'},
       {cls:'I',lbl:'Insuficiente',rng:'0–49',
        desc:'Las conclusiones están ausentes, son triviales o contradicen los resultados presentados.'}
+    ]
+  },
+  {
+    id:'C7', num:7, weight:5, hasTimePenalty:true,
+    name:'Claridad en la presentación y comunicación efectiva',
+    scope:'Evalúa la organización, legibilidad y manejo del tiempo durante la exposición. Incluye penalización por incumplimiento del tiempo asignado (10 min).',
+    levels:[
+      {cls:'S',lbl:'Sobresaliente',rng:'90–100',
+       desc:'Las diapositivas son limpias, con jerarquía visual clara y sin exceso de texto. El expositor domina el tema, mantiene contacto visual y responde con solvencia las preguntas del Comité. Se respeta el tiempo asignado (dentro del margen de ±1 min).'},
+      {cls:'B',lbl:'Satisfactorio',rng:'70–89',
+       desc:'La presentación es ordenada y el expositor se expresa con claridad, aunque con algunas láminas sobrecargadas. Las respuestas al comité son adecuadas. Se respeta el tiempo con un desvío de entre 1 y 2 minutos.'},
+      {cls:'D',lbl:'En desarrollo',rng:'50–69',
+       desc:'La presentación presenta problemas de orden o legibilidad. El expositor lee de las diapositivas o muestra inseguridad ante preguntas del comité.'},
+      {cls:'I',lbl:'Insuficiente',rng:'0–49',
+       desc:'La presentación es desorganizada, las diapositivas son ilegibles o el expositor no demuestra dominio suficiente del tema.'}
     ]
   }
 ];

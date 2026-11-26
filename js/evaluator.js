@@ -1,5 +1,5 @@
 window.Evaluator = (() => {
-  const rubric=DEFAULT_CRITERIA.map(c=>({id:c.id,name:c.name,weight:c.weight/100,scope:c.scope,levels:c.levels,hasTimePenalty:false,slider:!!c.slider}));
+  const rubric=DEFAULT_CRITERIA.map(c=>({id:c.id,name:c.name,weight:c.weight/100,scope:c.scope,levels:c.levels,hasTimePenalty:!!c.hasTimePenalty,slider:!!c.slider}));
   const dayFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Monterrey',year:'numeric',month:'2-digit',day:'2-digit'});
   async function load() {
     if (!API.isDemo()) return API.call('evaluatorDashboard', {}, Auth.getSession()?.token);
@@ -42,9 +42,9 @@ window.Evaluator = (() => {
         <input type="range" name="${escapeHtml(c.id)}" min="0" max="100" step="1" value="${escapeHtml(existing?.rawCriteria?.[c.id]??existing?.criteria?.[c.id]??50)}" data-score-slider aria-label="Puntaje de ${escapeHtml(c.name)}" ${readOnly?'disabled':existing?'':'aria-valuetext="Sin seleccionar"'}></label>
       <p class="criterion-result" data-criterion-result>${existing?`${c.hasTimePenalty?`Puntaje ajustado: ${escapeHtml(existing.criteria[c.id])} · `:''}Puntos obtenidos: ${(Number(existing.criteria[c.id])*c.weight).toFixed(2)} / ${c.weight*100}`:`Puntos obtenidos: — / ${c.weight*100}`}</p>
       <details><summary>Ver rúbrica</summary><div class="table-wrap"><table><thead><tr><th>Nivel</th><th>Descriptor</th></tr></thead><tbody>${c.levels.map(l=>`<tr><td>${escapeHtml(l.lbl)} (${escapeHtml(l.rng)})</td><td>${escapeHtml(l.desc)}</td></tr>`).join('')}</tbody></table></div></details>
-      ${c.hasTimePenalty?`<div class="time-fields"><p>Penalización por tiempo: hasta 1 min: 0; más de 1 a 3: −10; más de 3 a 5: −20; más de 5: −40 puntos en este criterio. La captura del tiempo es opcional.</p>
-        <label>Tiempo asignado (min)<input type="number" name="timeAssigned" min="1" max="120" step="1" value="${escapeHtml(existing?.time?.assigned??10)}" ${readOnly?'readonly':''}></label>
-        <label>Tiempo real (min)<input type="number" name="timeMinutes" min="0" max="120" step="1" value="${escapeHtml(existing?.time?.minutes??'')}" ${readOnly?'readonly':''}></label>
+      ${c.hasTimePenalty?`<div class="time-fields"><p>El tiempo asignado para la presentación es de 10 minutos. Penalización por desviación: hasta 1 min: 0; más de 1 a 3 min: −10; más de 3 a 5 min: −20; más de 5 min: −40 puntos en este criterio.</p>
+        <label>Tiempo asignado (min)<input type="number" name="timeAssigned" min="10" max="10" step="1" value="${escapeHtml(existing?.time?.assigned??10)}" readonly></label>
+        <label>Tiempo real (min)<input type="number" name="timeMinutes" min="0" max="120" step="1" value="${escapeHtml(existing?.time?.minutes??'')}" required ${readOnly?'readonly':''}></label>
         <label>Tiempo real (seg)<input type="number" name="timeSeconds" min="0" max="59" step="1" value="${escapeHtml(existing?.time?.seconds??'')}" ${readOnly?'readonly':''}></label>
         <p data-penalty-result>${existing&&existing.time?.minutes!==''&&existing.time?.minutes!=null?`Penalización aplicada: ${Number(existing.rawCriteria[c.id])-Number(existing.criteria[c.id])} puntos`:'Sin tiempo real registrado.'}</p></div>`:''}</section>`).join('');
     return `<form id="evaluationForm">

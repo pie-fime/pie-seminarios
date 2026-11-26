@@ -44,7 +44,7 @@ Para una instalación existente, sigue las precauciones de actualización indica
 
 `Periodos`, `Estudiantes`, `Evaluadores`, `Asignaciones`, `Evaluaciones`, `Usuarios`, `Configuracion`, `RubricaActual` y `Sesiones`.
 
-La hoja `RubricaActual` contiene los criterios, alcance, descriptores y ponderaciones. Modifica sus filas para futuras evaluaciones: usa IDs únicos que comiencen con una letra y contengan solo letras, números, guiones o guiones bajos; marca los criterios vigentes como activos y verifica que sus ponderaciones sumen `1`. `Deslizador` activa el control deslizante para un criterio. Los descriptores corresponden a los rangos 90–100, 70–89, 50–69 y 0–49.
+La hoja `RubricaActual` contiene los criterios, alcance, descriptores y ponderaciones. Modifica sus filas para futuras evaluaciones: usa IDs únicos que comiencen con una letra y contengan solo letras, números, guiones o guiones bajos; marca los criterios vigentes como activos y verifica que sus ponderaciones sumen `1`. `Deslizador` activa el control deslizante para un criterio y `Penalizacion_Tiempo` activa la penalización de tiempo. Los descriptores corresponden a los rangos 90–100, 70–89, 50–69 y 0–49.
 
 La hoja `Estudiantes` incluye la columna `Programa` (`MCIE` o `DIE`). Para una hoja existente, haz una copia de seguridad, actualiza Apps Script y ejecuta una vez `migrateStudentProgram()`; añade la columna sin borrar registros. Los alumnos existentes quedan sin programa hasta que se editen.
 
@@ -55,7 +55,8 @@ Al enviar una evaluación se guarda una copia de la rúbrica y su resultado. Los
 1. **Haz una copia de seguridad de todo el archivo de Google Sheets y suspende las capturas y la edición manual durante la actualización.** No ejecutes `setupSheets()` en una hoja existente: borra sus datos.
 2. Prueba primero en una copia independiente de la hoja y del proyecto Apps Script. Esta actualización no requiere ejecutar migraciones para hojas ya compatibles.
 3. Actualiza `Code.gs`, publica una nueva versión de la aplicación web y actualiza el frontend de forma coordinada antes de reanudar las capturas. El frontend y el backend nuevos deben instalarse juntos para conservar la selección de rúbrica del evaluador.
-4. Comprueba el acceso, las asignaciones, evaluaciones y reportes con datos de prueba. Si hay un error de escritura o restauración, detén las capturas y revisa las hojas y la copia de seguridad antes de reintentar.
+4. Para activar la rúbrica predeterminada de siete criterios, respalda la hoja y ejecuta `replaceRubricWithDefault()` una vez desde Apps Script. La función reemplaza `RubricaActual` (incluidas las ponderaciones personalizadas) y añade la columna `Penalizacion_Tiempo` si hace falta; no modifica las rúbricas guardadas en evaluaciones ya enviadas.
+5. Comprueba el acceso, las asignaciones, evaluaciones y reportes con datos de prueba. Si hay un error de escritura o restauración, detén las capturas y revisa las hojas y la copia de seguridad antes de reintentar.
 
 Las operaciones en varias hojas usan compensaciones ante errores, **no transacciones**: si también falla la restauración, pueden quedar cambios parciales. Los borrados múltiples y la desactivación de cuentas asociada al borrado de evaluadores conservan su comportamiento anterior y también pueden quedar incompletos si ocurre un error. Mantén respaldos y revisa el estado antes de reintentar.
 

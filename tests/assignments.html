@@ -52,16 +52,21 @@
       await waitFor(()=>doc.querySelector('[data-edit-assignment="EST-004"]'));
       const row=doc.querySelector('[data-edit-assignment="EST-004"]').closest('tr');
       const headings=[...doc.querySelectorAll('#content table th')].map(th=>th.textContent);
-      assert(headings.join('|')==='Matrícula|Estudiante|Título de tesis|Director // Codirector|Evaluadores|Avance|Acciones','Las columnas de asignaciones no están en el orden esperado');
+      assert(headings.join('|')==='Matrícula|Estudiante|Título de tesis|Director // Codirector|Evaluadores|Fecha de evaluación|Hora|Avance|Acciones','Las columnas de asignaciones no están en el orden esperado');
       assert(row.cells[2].textContent==='Tesis <prueba>'&&row.cells[3].textContent==='Director & asesor'&&!row.cells[2].querySelector('prueba'),'No se muestran correctamente el título y el director');
       assert(row.textContent.includes('Sin asignar'),'Se mostró una asignación inactiva');
       row.querySelector('button').click();
       const checkbox=id=>doc.querySelector(`#assignmentForm [value="${id}"]`);
       checkbox('EV-001').click();
+      doc.getElementById('assignmentForm').elements.date.value='2027-03-15';
+      doc.getElementById('assignmentForm').elements.time.value='10:30';
       doc.getElementById('assignmentForm').requestSubmit();
       await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
       let saved=await w.Admin.load();
       assert(saved.assignments.some(a=>a.student==='EST-004'&&a.evaluator==='EV-001'&&a.state==='Activa'),'No se guardó una asignación parcial');
+      assert(saved.assignments.some(a=>a.student==='EST-004'&&a.state==='Activa'&&a.date==='2027-03-15'&&a.time==='10:30'),'No se guardó el horario');
+      const evaluatorDashboard=new DOMParser().parseFromString(w.Evaluator.dashboard({students:[saved.students.find(s=>s.id==='EST-004')],assignments:saved.assignments.filter(a=>a.student==='EST-004'&&a.evaluator==='EV-001'&&a.state==='Activa'),completed:[],evaluations:[],period:saved.period}),'text/html');
+      assert(evaluatorDashboard.querySelector('tbody').textContent.includes('15/03/2027')&&evaluatorDashboard.querySelector('tbody').textContent.includes('10:30'),'El evaluador no ve el horario asignado');
       const report=w.Reports.createReport({...saved,rubric:[]},'student',{studentId:'EST-004'});
       assert(report.html.includes(saved.evaluators[0].name)&&report.html.includes('Pendiente'),'El reporte no muestra la asignación parcial pendiente');
       saved.evaluations.push({student:'EST-004',evaluator:'EV-001',period:saved.period.id,round:2});
@@ -70,18 +75,21 @@
       await waitFor(()=>doc.querySelector('[data-edit-assignment="EST-004"]'));
       doc.querySelector('[data-edit-assignment="EST-004"]').click();
       assert(checkbox('EV-001').checked&&checkbox('EV-001').disabled,'No se protegió la evaluación enviada');
+      assert(doc.getElementById('assignmentForm').elements.date.value==='2027-03-15'&&doc.getElementById('assignmentForm').elements.time.value==='10:30','El formulario no recupera el horario');
+      doc.getElementById('assignmentForm').elements.time.value='11:45';
       checkbox('EV-002').click();checkbox('EV-003').click();checkbox('EV-004').click();
       assert(!checkbox('EV-004').checked,'Se permitieron más de tres evaluadores');
       doc.getElementById('assignmentForm').requestSubmit();
       await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
       saved=await w.Admin.load();
       assert(saved.assignments.filter(a=>a.student==='EST-004'&&a.state==='Activa').length===3,'No se completó la asignación después de una evaluación');
+      assert(saved.assignments.filter(a=>a.student==='EST-004'&&a.state==='Activa').every(a=>a.date==='2027-03-15'&&a.time==='11:45'),'Todos los evaluadores deben compartir el horario actualizado');
       saved.students=[];w.Admin.saveDemo(saved);
       doc.querySelector('[data-view="assignments"]').click();
       await waitFor(()=>doc.getElementById('content').textContent.includes('No hay estudiantes en el periodo activo'));
-      assert(doc.querySelector('#content .empty-row').colSpan===7,'El mensaje vacío no abarca todas las columnas');
+      assert(doc.querySelector('#content .empty-row').colSpan===9,'El mensaje vacío no abarca todas las columnas');
 
-      const headers=['Estado','ID_Evaluador','ID_Periodo','ID_Asignacion','Fecha_Asignacion','ID_Estudiante'];
+      const headers=['Estado','ID_Evaluador','ID_Periodo','ID_Asignacion','Fecha_Asignacion','ID_Estudiante','Fecha_Evaluacion','Hora_Evaluacion'];
       const rows=[headers];
       let serial=0,evaluations=[],failStateWrite=false;
       const evaluators=['E1','E2','E3','E4'].map(id=>({id,state:id==='E4'?'Inactivo':'Activo'}));
@@ -100,29 +108,54 @@
       });
       window.SpreadsheetApp={flush:()=>{}};
       window.nextId=()=>`AS-${++serial}`;
-      const rejects=(ids,message)=>{
+      const rejects=(ids,message,date='',time='')=>{
         let failed=false;
-        try{saveAssignment('S1',ids);}catch(error){failed=error.message.includes(message);}
+        try{saveAssignment('S1',ids,date,time);}catch(error){failed=error.message.includes(message);}
         assert(failed,'Se esperaba el error: '+message);
       };
-      saveAssignment('S1',['E1']);
+      saveAssignment('S1',['E1'],'2027-03-15','10:30');
       evaluations=[{student:'S1',evaluator:'E1'}];
-      saveAssignment('S1',['E1','E2']);
+      saveAssignment('S1',['E1','E2'],'2027-03-15','11:45');
       assert(rows.filter(r=>r[0]==='Activa').length===2,'El servidor no conservó la evaluación al agregar un evaluador');
+      assert(rows.slice(1).filter(r=>r[0]==='Activa').every(r=>r[6]==='2027-03-15'&&r[7]==='11:45'),'El servidor no sincronizó el horario compartido');
+      rejects(['E1'],'fecha válida','2027-02-30','10:00');
+      rejects(['E1'],'hora válida','2027-03-15','25:00');
       rejects(['E2'],'ya envió');
       rejects(['E1','E2','E3','E4'],'hasta tres');
       rejects(['E1','E1'],'diferentes');
       rejects(['E1','E4'],'no está disponible');
-      saveAssignment('S1',['E1','E3']);
+      saveAssignment('S1',['E1','E3'],'2027-03-15','11:45');
       assert(rows.some(r=>r[0]==='Inactiva'&&r[1]==='E2')&&rows.some(r=>r[0]==='Activa'&&r[1]==='E3'),'No se reemplazó el evaluador pendiente');
       assert(rows.some(r=>r[0]==='Activa'&&r[1]==='E1'),'Se alteró la asignación evaluada');
       failStateWrite=true;
-      rejects(['E1','E2'],'Fallo simulado');
+      rejects(['E1','E2'],'Fallo simulado','2027-03-15','11:45');
       assert(rows.some(r=>r[0]==='Activa'&&r[1]==='E3')&&!rows.some(r=>r[0]==='Activa'&&r[1]==='E2'),'No se restauraron las asignaciones tras un fallo');
+      failStateWrite=true;
+      rejects(['E1','E3'],'Fallo simulado','2027-04-01','09:00');
+      assert(rows.slice(1).filter(r=>r[0]==='Activa').every(r=>r[6]==='2027-03-15'&&r[7]==='11:45'),'No se restauró el horario tras un fallo');
+      saveAssignment('S1',['E1','E3'],'','');
+      assert(rows.slice(1).filter(r=>r[0]==='Activa').every(r=>r[6]===''&&r[7]===''),'Debe permitirse borrar el horario sin retirar evaluadores');
       rejects([],'ya envió');
       evaluations=[];
-      saveAssignment('S1',[]);
+      rejects([],'al menos un evaluador','2027-03-15','');
+      saveAssignment('S1',[],'','');
       assert(!rows.slice(1).some(r=>r[0]==='Activa'),'No se eliminaron las asignaciones pendientes');
+      const oldHeaders=['ID_Asignacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Fecha_Asignacion','Estado'];
+      const oldRows=[oldHeaders.slice(),['AS-1','P1','S1','E1','2027-01-01','Activa']];
+      const formatted=[];
+      window.withDirectoryLock=action=>action();
+      window.sh=()=>({
+        getDataRange:()=>({getValues:()=>oldRows.map(row=>row.slice())}),getMaxRows:()=>100,
+        getRange:(row,column,height,width)=>({
+          setValues:values=>values[0].forEach((value,i)=>{oldRows[row-1][column-1+i]=value;}),
+          setNumberFormat:format=>formatted.push({row,column,height,width,format})
+        })
+      });
+      migrateAssignmentSchedule();migrateAssignmentSchedule();
+      assert(oldRows[0].join('|')===oldHeaders.concat(['Fecha_Evaluacion','Hora_Evaluacion']).join('|')&&oldRows[1].join('|')==='AS-1|P1|S1|E1|2027-01-01|Activa','La migración debe agregar columnas una sola vez sin alterar las asignaciones');
+      assert(formatted.every(entry=>entry.format==='@'&&entry.row===2)&&formatted.length===4,'Los horarios deben guardarse como texto para evitar conversiones de zona horaria');
+      const mapped=mapAssignment({ID_Asignacion:'AS-1',ID_Estudiante:'S1',ID_Evaluador:'E1',Estado:'Activa',Fecha_Evaluacion:'2027-03-15',Hora_Evaluacion:'10:30'});
+      assert(mapped.date==='2027-03-15'&&mapped.time==='10:30','El servidor debe devolver el horario de la asignación');
       document.getElementById('result').textContent='Todas las pruebas de asignaciones pasaron.';
     }catch(error){document.getElementById('result').textContent='Error: '+error.message;console.error(error);}
   };

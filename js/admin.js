@@ -225,12 +225,13 @@ window.Admin = (() => {
   }
   function assignments(data) {
     const byStudent=data.students.map(s=>{
-      const ids=data.assignments.filter(a=>a.student===s.id&&a.state==='Activa').map(a=>a.evaluator);
+      const active=data.assignments.filter(a=>a.student===s.id&&a.state==='Activa');
+      const ids=active.map(a=>a.evaluator);
       const names=ids.map(id=>escapeHtml(data.evaluators.find(e=>e.id===id)?.name||id)).join('<br>');
       const completed=data.evaluations.filter(e=>e.student===s.id&&(e.round||1)===2).length;
-      return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.thesis)}</td><td>${escapeHtml(s.director)}</td><td>${names||'Sin asignar'}</td><td>${completed} de 3</td><td><button class="text-button" data-edit-assignment="${escapeHtml(s.id)}">Asignar</button></td></tr>`;
-    }).join('')||`<tr><td colspan="7" class="empty-row">${data.period?.id?'No hay estudiantes en el periodo activo. Revisa la cohorte de los estudiantes o activa el periodo correspondiente.':'No hay un periodo activo. Activa un periodo para asignar evaluadores.'}</td></tr>`;
-    return `<section class="panel"><div class="panel-header"><h2>Asignaciones</h2></div>${table(['Matrícula','Estudiante','Título de tesis','Director // Codirector','Evaluadores','Avance','Acciones'],byStudent)}</section>`;
+      return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.thesis)}</td><td>${escapeHtml(s.director)}</td><td>${names||'Sin asignar'}</td><td>${escapeHtml(active[0]?.date?formatDate(active[0].date):'Sin programar')}</td><td>${escapeHtml(active[0]?.time||'Sin programar')}</td><td>${completed} de 3</td><td><button class="text-button" data-edit-assignment="${escapeHtml(s.id)}">Asignar</button></td></tr>`;
+    }).join('')||`<tr><td colspan="9" class="empty-row">${data.period?.id?'No hay estudiantes en el periodo activo. Revisa la cohorte de los estudiantes o activa el periodo correspondiente.':'No hay un periodo activo. Activa un periodo para asignar evaluadores.'}</td></tr>`;
+    return `<section class="panel"><div class="panel-header"><h2>Asignaciones</h2></div>${table(['Matrícula','Estudiante','Título de tesis','Director // Codirector','Evaluadores','Fecha de evaluación','Hora','Avance','Acciones'],byStudent)}</section>`;
   }
   function studentForm(data,student={}) {
     const periods=data.periods||[data.period].filter(Boolean);

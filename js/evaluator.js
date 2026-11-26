@@ -6,12 +6,13 @@ window.Evaluator = (() => {
     const source=await Admin.load();
     const admin=Admin.forPeriod(source,source.period?.id);
     const evaluator=admin.evaluators.find(e=>e.username===(Auth.getSession()?.username||'evaluador'));
-    const assigned=admin.assignments.filter(a=>a.evaluator===evaluator?.id&&a.state==='Activa').map(a=>a.student);
+    const assignments=admin.assignments.filter(a=>a.evaluator===evaluator?.id&&a.state==='Activa');
+    const assigned=assignments.map(a=>a.student);
     const students=admin.students.filter(s=>s.period===admin.period.id&&assigned.includes(s.id));
     const allEvaluations=admin.evaluations.filter(e=>(e.round||1)===2);
     const evaluations=allEvaluations.filter(e=>e.evaluator===evaluator?.id&&assigned.includes(e.student));
     const studentRubrics=students.map(s=>({student:s.id,rubric:allEvaluations.find(e=>e.student===s.id)?.rubric})).filter(item=>item.rubric);
-    return {evaluator,period:admin.period,evaluations,students,studentRubrics,
+    return {evaluator,period:admin.period,evaluations,students,assignments,studentRubrics,
       completed:evaluations.map(e=>e.student),rubric};
   }
   function dashboard(data) {
@@ -30,9 +31,10 @@ window.Evaluator = (() => {
     const rows=data.students.map(s=>{
       const done=data.completed.includes(s.id);
       const evaluation=data.evaluations.find(e=>e.student===s.id&&e.evaluator===data.evaluator?.id);
-      return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.thesis)}</td><td>${escapeHtml(s.director)}</td><td><span class="badge ${done?'ok':'warn'}">${done?'Completada':'Pendiente'}</span></td><td><button class="text-button" data-evaluate="${escapeHtml(s.id)}" data-done="${done}">${done?(canEdit(evaluation)?'Editar':'Consultar'):'Evaluar'}</button></td></tr>`;
+      const assignment=data.assignments?.find(a=>a.student===s.id);
+      return `<tr><td>${escapeHtml(s.matricula)}</td><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.thesis)}</td><td>${escapeHtml(s.director)}</td><td>${escapeHtml(assignment?.date?Admin.formatDate(assignment.date):'Sin programar')}</td><td>${escapeHtml(assignment?.time||'Sin programar')}</td><td><span class="badge ${done?'ok':'warn'}">${done?'Completada':'Pendiente'}</span></td><td><button class="text-button" data-evaluate="${escapeHtml(s.id)}" data-done="${done}">${done?(canEdit(evaluation)?'Editar':'Consultar'):'Evaluar'}</button></td></tr>`;
     }).join('');
-    return `<div class="table-wrap"><table><thead><tr><th>Matrícula</th><th>Estudiante</th><th>Tesis</th><th>Director // Codirector</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><thead><tr><th>Matrícula</th><th>Estudiante</th><th>Tesis</th><th>Director // Codirector</th><th>Fecha de evaluación</th><th>Hora</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   function rubricForm(student, selectedRubric, existing=null, editable=false) {
     const readOnly=existing&&!editable;

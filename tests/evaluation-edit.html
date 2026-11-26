@@ -118,6 +118,7 @@
       w.Admin.saveDemo(saved);
       const evaluatorData=await w.Evaluator.load();
       assert(evaluatorData.evaluations.every(e=>e.evaluator==='EV-001')&&!evaluatorData.sourceData,'El demo expone evaluaciones ajenas');
+      assert(evaluatorData.assignments.every(a=>a.evaluator==='EV-001'&&a.state==='Activa'),'El demo solo debe exponer las asignaciones del evaluador');
       assert(evaluatorData.studentRubrics.find(item=>item.student==='EST-003')?.rubric[0].id==='OTRO','No se conservó la rúbrica compartida');
 
       window.Utilities={formatDate:(date,zone)=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date)};
@@ -163,11 +164,12 @@
       rows[1][6]='';
       rejects({username:'evaluador'},true,'Solo puedes editar');
       window.dashboard=()=>({period:{id:'P1'},evaluators:[{id:'E1',username:'evaluador'},{id:'E2',username:'otro'}],
-        assignments:[{student:'S1',evaluator:'E1',state:'Activa'}],students:[{id:'S1'},{id:'S2'}],
+        assignments:[{student:'S1',evaluator:'E1',state:'Activa',date:'2027-03-15',time:'10:30'},{student:'S2',evaluator:'E2',state:'Activa',date:'2027-03-16',time:'12:00'}],students:[{id:'S1'},{id:'S2'}],
         evaluations:[{student:'S1',evaluator:'E2',rubric:serverRubric,observations:'Privado'},{student:'S2',evaluator:'E2',rubric:serverRubric}]});
       window.getRubric=()=>serverRubric;
       const privateDashboard=evaluatorDashboard({username:'evaluador'});
       assert(privateDashboard.evaluations.length===0&&privateDashboard.studentRubrics.length===1&&privateDashboard.studentRubrics[0].student==='S1','El servidor expone evaluaciones ajenas o pierde la rúbrica asignada');
+      assert(privateDashboard.assignments.length===1&&privateDashboard.assignments[0].date==='2027-03-15'&&privateDashboard.assignments[0].time==='10:30','El servidor debe proporcionar solo el horario del evaluador');
       document.getElementById('result').textContent='Todas las pruebas de edición de evaluaciones pasaron.';
     }catch(error){document.getElementById('result').textContent='Error: '+error.message;console.error(error);}
   };

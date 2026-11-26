@@ -56,17 +56,17 @@ window.Reports = (() => {
   }
 
   function assignmentsReport(data) {
-    const headers=['Matrícula','Estudiante','Programa','Título de tesis','Director // Codirector','Evaluadores'];
+    const headers=['Matrícula','Estudiante','Programa','Título de tesis','Director // Codirector','Evaluadores','Fecha de evaluación','Hora'];
     const rows=data.students.map(student=>{
-      const names=data.assignments.filter(a=>a.student===student.id&&a.state==='Activa')
-        .map(a=>data.evaluators.find(e=>e.id===a.evaluator)?.name||a.evaluator);
-      return [student.matricula,student.name,student.program||'Sin asignar',student.thesis,student.director,names.join('\n')||'Sin asignar'];
+      const active=data.assignments.filter(a=>a.student===student.id&&a.state==='Activa');
+      const names=active.map(a=>data.evaluators.find(e=>e.id===a.evaluator)?.name||a.evaluator);
+      return [student.matricula,student.name,student.program||'Sin asignar',student.thesis,student.director,names.join('\n')||'Sin asignar',active[0]?.date?Admin.formatDate(active[0].date):'Sin programar',active[0]?.time||'Sin programar'];
     });
     const html=`<article class="panel printable-report">
       ${reportHeading('Asignaciones por periodo',periodName(data))}
       <div class="table-wrap"><table class="report-table">
         <thead><tr>${headers.map(header=>`<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
-        <tbody>${rows.map(row=>`<tr>${row.map((value,index)=>`<td>${index===5?escapeHtml(value).replace(/\n/g,'<br>'):escapeHtml(value)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="6">No hay estudiantes en este periodo.</td></tr>'}</tbody>
+        <tbody>${rows.map(row=>`<tr>${row.map((value,index)=>`<td>${index===5?escapeHtml(value).replace(/\n/g,'<br>'):escapeHtml(value)}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="8">No hay estudiantes en este periodo.</td></tr>'}</tbody>
       </table></div>
     </article>`;
     return {html,csvRows:[['Asignaciones por periodo',periodName(data)],[],headers,...rows],filename:`reporte-asignaciones-${filePart(periodName(data))}.csv`};

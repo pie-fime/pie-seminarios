@@ -85,7 +85,8 @@ Si ocurre un error durante un borrado múltiple o al borrar evaluadores, la oper
 
 1. Verifica que esté activo el periodo correspondiente y que existan el estudiante y los evaluadores.
 2. Entra en **Asignaciones**, consulta el título de tesis y el director en la fila del estudiante y pulsa **Asignar**.
-3. Marca hasta **tres evaluadores diferentes** y pulsa **Guardar asignación**. Puedes completar la asignación más adelante o desmarcar todos para quitarla.
+3. Marca hasta **tres evaluadores diferentes**. Si lo deseas, captura la **fecha** y la **hora** de evaluación en horario de Monterrey; ambas se comparten con los evaluadores asignados.
+4. Pulsa **Guardar asignación**. Puedes completar la asignación más adelante o desmarcar todos para quitarla. Para guardar una fecha u hora debe haber al menos un evaluador; si quitas a todos, también debes borrar esos campos.
 
 Los evaluadores que ya enviaron su evaluación no pueden retirarse. Para obtener el promedio final se requieren tres evaluaciones. La lista muestra únicamente estudiantes del periodo activo; si está vacía, revisa su cohorte y el periodo activo.
 
@@ -100,7 +101,7 @@ En **Administradores**, pulsa **Nuevo administrador**. Captura nombre, usuario o
 3. Pulsa **Visualizar reporte**.
 4. Al final del reporte, usa **Descargar CSV** o **Imprimir / Guardar PDF**. Para obtener un PDF, selecciona «Guardar como PDF» en el diálogo de impresión del navegador.
 
-El reporte **Asignaciones por periodo** muestra matrícula, estudiante, programa, título de tesis, director y evaluadores asignados.
+El reporte **Asignaciones por periodo** muestra matrícula, estudiante, programa, título de tesis, director, evaluadores asignados, fecha y hora de evaluación.
 
 El reporte individual presenta los criterios, las calificaciones y observaciones de los revisores. Debajo de la tabla aparece la calificación final, que permanece **Pendiente** hasta contar con las tres evaluaciones. Protege los reportes descargados y compártelos solo con personas autorizadas.
 
@@ -108,7 +109,7 @@ El reporte individual presenta los criterios, las calificaciones y observaciones
 
 ### 4.1. Consultar estudiantes
 
-Al iniciar sesión aparece **Mis estudiantes**, con los asignados en el periodo activo y su estado: **Pendiente** o **Completada**. Si falta un estudiante, consulta al administrador para verificar el periodo y la asignación.
+Al iniciar sesión aparece **Mis estudiantes**, con los asignados en el periodo activo, la fecha y hora de evaluación cuando están programadas, y su estado: **Pendiente** o **Completada**. Si falta un estudiante, consulta al administrador para verificar el periodo y la asignación.
 
 ### 4.2. Capturar y enviar una evaluación
 

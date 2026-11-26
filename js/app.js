@@ -426,10 +426,13 @@ window.App = (() => {
       const student=data.students.find(s=>s.id===b.dataset.editAssignment);
       const currentData=API.isDemo()?Admin.forPeriod(data,data.period?.id):data;
       const currentAssignments=currentData.assignments;
-      const ids=currentAssignments.filter(a=>a.student===student.id&&a.state==='Activa').map(a=>a.evaluator);
+      const activeAssignments=currentAssignments.filter(a=>a.student===student.id&&a.state==='Activa');
+      const ids=activeAssignments.map(a=>a.evaluator);
       const evaluated=currentData.evaluations.filter(e=>e.student===student.id&&(e.round||1)===2).map(e=>e.evaluator);
-      openModal(`Asignar evaluadores · ${student.name}`,`<form id="assignmentForm"><div id="assignmentOptions"></div><p class="muted">Selecciona hasta tres evaluadores. Los que ya enviaron su evaluación no pueden retirarse.</p><button class="button primary" type="submit">Guardar asignación</button></form>`);
+      openModal(`Asignar evaluadores · ${student.name}`,`<form id="assignmentForm"><div id="assignmentOptions"></div><p class="muted">Selecciona hasta tres evaluadores. Los que ya enviaron su evaluación no pueden retirarse.</p><div class="form-grid"><label>Fecha de evaluación (opcional)<input type="date" name="date"></label><label>Hora de evaluación (opcional)<input type="time" name="time"></label></div><p class="muted">El horario es compartido por los evaluadores y corresponde a la hora local de Monterrey.</p><button class="button primary" type="submit">Guardar asignación</button></form>`);
       const form=document.getElementById('assignmentForm'),options=document.getElementById('assignmentOptions');
+      form.elements.date.value=activeAssignments[0]?.date||'';
+      form.elements.time.value=activeAssignments[0]?.time||'';
       data.evaluators.filter(e=>e.state==='Activo'||ids.includes(e.id)).forEach(e=>{
         const label=document.createElement('label'),input=document.createElement('input'),name=document.createElement('span');
         label.className='assignment-option';input.type='checkbox';input.name='evaluator';input.value=e.id;
@@ -441,10 +444,12 @@ window.App = (() => {
       if(!options.children.length)options.textContent='No hay evaluadores activos disponibles.';
       form.onsubmit=async e=>{
         e.preventDefault();const selected=[...form.querySelectorAll('input:checked')].map(i=>i.value);
+        const date=form.elements.date.value,time=form.elements.time.value;
         if(selected.length>3)return toast('Puedes asignar hasta tres evaluadores');
+        if((date||time)&&!selected.length)return toast('Asigna al menos un evaluador para guardar la fecha u hora');
         const button=form.querySelector('[type=submit]');button.disabled=true;
         try{
-          if(!API.isDemo())await API.call('saveAssignment',{studentId:student.id,evaluatorIds:selected},session.token);
+          if(!API.isDemo())await API.call('saveAssignment',{studentId:student.id,evaluatorIds:selected,date,time},session.token);
           else{
             const current=await Admin.load(),active=Admin.forPeriod(current,current.period?.id);
             if(current.period?.id!==data.period?.id||!active.students.some(s=>s.id===student.id))throw new Error('El estudiante o el periodo activo ya no está disponible');
@@ -453,7 +458,8 @@ window.App = (() => {
             if(completed.some(id=>!selected.includes(id)))throw new Error('No se puede retirar a un evaluador que ya envió su evaluación');
             if(selected.some(id=>!current.evaluators.some(ev=>ev.id===id&&(ev.state==='Activo'||(assigned.some(a=>a.evaluator===id)&&completed.includes(id))))))throw new Error('Alguno de los evaluadores ya no está disponible');
             current.assignments.forEach(a=>{if(assigned.includes(a)&&!selected.includes(a.evaluator))a.state='Inactiva';});
-            selected.filter(id=>!assigned.some(a=>a.evaluator===id)).forEach(evaluator=>current.assignments.push({id:Admin.nextDemoId(current.assignments,'AS'),period:current.period.id,student:student.id,evaluator,state:'Activa'}));
+            assigned.filter(a=>selected.includes(a.evaluator)).forEach(a=>Object.assign(a,{date,time}));
+            selected.filter(id=>!assigned.some(a=>a.evaluator===id)).forEach(evaluator=>current.assignments.push({id:Admin.nextDemoId(current.assignments,'AS'),period:current.period.id,student:student.id,evaluator,state:'Activa',date,time}));
             Admin.saveDemo(current);
           }
         }catch(error){button.disabled=false;toast(error.message);return;}

@@ -110,6 +110,7 @@ const SHEETS = ['Periodos','Estudiantes','Evaluadores','Asignaciones','Evaluacio
 const NEW_EVALUATION_HEADERS=['Ronda','Rubrica_JSON','Calificaciones_JSON','Calificaciones_Originales_JSON','Tiempo_JSON','Observaciones_Criterios_JSON'];
 const RUBRIC_HEADERS=['ID_Criterio','Nombre','Alcance','Sobresaliente','Satisfactorio','En_desarrollo','Insuficiente','Ponderacion','Activo','Deslizador','Penalizacion_Tiempo'];
 const STUDENT_HEADERS=['ID_Estudiante','Matricula','Nombre','Semestre','Titulo_Tesis','Director_Tesis','ID_Periodo','Estado','Programa'];
+const ASSIGNMENT_HEADERS=['ID_Asignacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Fecha_Asignacion','Estado','Fecha_Evaluacion','Hora_Evaluacion'];
 
 function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -117,7 +118,7 @@ function setupSheets() {
     Periodos:['ID_Periodo','Nombre_Periodo','Fecha_Inicio','Fecha_Fin','Estado'],
     Estudiantes:STUDENT_HEADERS,
     Evaluadores:['ID_Evaluador','Nombre','Correo','Usuario','Estado'],
-    Asignaciones:['ID_Asignacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Fecha_Asignacion','Estado'],
+    Asignaciones:ASSIGNMENT_HEADERS,
     Evaluaciones:['ID_Evaluacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Calificacion_Individual','Observaciones_Generales','Fecha_Envio','Estado'].concat(NEW_EVALUATION_HEADERS),
     Usuarios:['ID_Usuario','Nombre','Usuario','Password_Hash','Salt','Rol','Estado','Debe_Cambiar'],
     Configuracion:['Clave','Valor'],
@@ -132,6 +133,7 @@ function setupSheets() {
     sh.setFrozenRows(1);
   });
   const config=ss.getSheetByName('Configuracion');
+  formatAssignmentScheduleColumns(ss.getSheetByName('Asignaciones'),ASSIGNMENT_HEADERS);
   config.getRange(2,1,3,2).setValues([
     ['API_MAX_SESSION_HOURS','8'],
     ['RUBRIC_VERSION','2'],
@@ -200,6 +202,24 @@ function migrateStudentProgram(){
   });
 }
 
+function formatAssignmentScheduleColumns(sheet,headers){
+  ['Fecha_Evaluacion','Hora_Evaluacion'].forEach(header=>{
+    sheet.getRange(2,headers.indexOf(header)+1,sheet.getMaxRows()-1,1).setNumberFormat('@');
+  });
+}
+function migrateAssignmentSchedule(){
+  return withDirectoryLock(()=>{
+    const sheet=sh('Asignaciones');
+    if(!sheet)throw new Error('No existe la hoja Asignaciones');
+    const headers=sheet.getDataRange().getValues()[0];
+    if(ASSIGNMENT_HEADERS.slice(0,6).some(h=>headers.filter(v=>v===h).length!==1)||
+       ASSIGNMENT_HEADERS.slice(6).some(h=>headers.filter(v=>v===h).length>1))throw new Error('La hoja Asignaciones no tiene columnas válidas');
+    const missing=ASSIGNMENT_HEADERS.slice(6).filter(h=>!headers.includes(h));
+    if(missing.length)sheet.getRange(1,headers.length+1,1,missing.length).setValues([missing]);
+    formatAssignmentScheduleColumns(sheet,headers.concat(missing));
+  });
+}
+
 function createFirstAdmin() {
   const shUsers=sh('Usuarios');
   const existing=table('Usuarios');
@@ -237,7 +257,7 @@ function doPost(e) {
     if (body.action==='activatePeriod' && session.role==='admin') return json({ok:true,data:withDirectoryLock(()=>activatePeriod(body.id))});
     if (body.action==='importStudents' && session.role==='admin') return json({ok:true,data:withDirectoryLock(()=>importStudents(body.students))});
     if (body.action==='importEvaluators' && session.role==='admin') return json({ok:true,data:withDirectoryLock(()=>importEvaluators(body.evaluators))});
-    if (body.action==='saveAssignment' && session.role==='admin') return json({ok:true,data:withDirectoryLock(()=>saveAssignment(body.studentId,body.evaluatorIds))});
+    if (body.action==='saveAssignment' && session.role==='admin') return json({ok:true,data:withDirectoryLock(()=>saveAssignment(body.studentId,body.evaluatorIds,body.date,body.time))});
     if (body.action==='submitEvaluation' && session.role==='evaluator') return json({ok:true,data:withDirectoryLock(()=>submitEvaluation(session,body))});
     if (body.action==='updateEvaluation' && session.role==='evaluator') return json({ok:true,data:withDirectoryLock(()=>submitEvaluation(session,body,true))});
     return json({ok:false,error:'Acción no autorizada'});
@@ -381,7 +401,7 @@ function dashboard(){
   return {period:{id:active.ID_Periodo,name:active.Nombre_Periodo,start:active.Fecha_Inicio,end:active.Fecha_Fin,state:active.Estado},
     students:table('Estudiantes').filter(s=>s.ID_Periodo===active.ID_Periodo).map(mapStudent),
     evaluators:table('Evaluadores').map(e=>({id:e.ID_Evaluador,name:e.Nombre,email:e.Correo,username:e.Usuario,state:e.Estado})),
-    assignments:table('Asignaciones').filter(a=>a.ID_Periodo===active.ID_Periodo).map(a=>({id:a.ID_Asignacion,student:a.ID_Estudiante,evaluator:a.ID_Evaluador,state:a.Estado})),
+    assignments:table('Asignaciones').filter(a=>a.ID_Periodo===active.ID_Periodo).map(mapAssignment),
     evaluations:table('Evaluaciones').filter(e=>e.ID_Periodo===active.ID_Periodo&&Number(e.Ronda||1)===2).map(mapEvaluation)
   };
 }
@@ -398,18 +418,23 @@ function reportData(periodId){
   const selected=allPeriods.find(p=>p.id===periodId)||allPeriods.find(p=>p.state==='Activo')||allPeriods[0]||{};
   const students=table('Estudiantes').filter(s=>s.ID_Periodo===selected.id).map(mapStudent);
   const evaluators=table('Evaluadores').map(e=>({id:e.ID_Evaluador,name:e.Nombre,email:e.Correo,username:e.Usuario,state:e.Estado}));
-  const assignments=table('Asignaciones').filter(a=>a.ID_Periodo===selected.id).map(a=>({id:a.ID_Asignacion,student:a.ID_Estudiante,evaluator:a.ID_Evaluador,state:a.Estado}));
+  const assignments=table('Asignaciones').filter(a=>a.ID_Periodo===selected.id).map(mapAssignment);
   const evaluations=table('Evaluaciones').filter(e=>e.ID_Periodo===selected.id&&Number(e.Ronda||1)===2).map(mapEvaluation);
   return {period:selected,periods:allPeriods,students,evaluators,assignments,evaluations,rubric:getRubric(false)};
 }
 function evaluatorDashboard(session){
   const d=dashboard();const ev=d.evaluators.find(e=>e.username===session.username);
   if(!ev)return {evaluator:{name:session.name},period:d.period,students:[],completed:[],evaluations:[],studentRubrics:[],rubric:getRubric()};
-  const assigned=d.assignments.filter(a=>a.evaluator===ev.id&&a.state==='Activa').map(a=>a.student);
+  const assignments=d.assignments.filter(a=>a.evaluator===ev.id&&a.state==='Activa');
+  const assigned=assignments.map(a=>a.student);
   const students=d.students.filter(s=>assigned.includes(s.id));
   const evaluations=d.evaluations.filter(e=>e.evaluator===ev.id&&assigned.includes(e.student));
   const studentRubrics=students.map(s=>({student:s.id,rubric:d.evaluations.find(e=>e.student===s.id)?.rubric})).filter(item=>item.rubric);
-  return {evaluator:ev,period:d.period,students:students,completed:evaluations.map(e=>e.student),evaluations:evaluations,studentRubrics:studentRubrics,rubric:getRubric()};
+  return {evaluator:ev,period:d.period,students:students,assignments:assignments,completed:evaluations.map(e=>e.student),evaluations:evaluations,studentRubrics:studentRubrics,rubric:getRubric()};
+}
+function mapAssignment(a){
+  const format=(value,pattern)=>value instanceof Date?Utilities.formatDate(value,'America/Monterrey',pattern):String(value||'');
+  return {id:a.ID_Asignacion,student:a.ID_Estudiante,evaluator:a.ID_Evaluador,state:a.Estado,date:format(a.Fecha_Evaluacion,'yyyy-MM-dd'),time:format(a.Hora_Evaluacion,'HH:mm')};
 }
 function mapStudent(s){
   return {id:s.ID_Estudiante,matricula:s.Matricula,name:s.Nombre,program:s.Programa||'',semester:s.Semestre,thesis:s.Titulo_Tesis,director:s.Director_Tesis,period:s.ID_Periodo,state:s.Estado};
@@ -668,8 +693,15 @@ function importEvaluators(evaluators){
   writeNewDirectoryRows([directoryEntry('Evaluadores',evaluatorRows),directoryEntry('Usuarios',userRows)]);
   return {imported:evaluators.length};
 }
-function saveAssignment(studentId,evaluatorIds){
+function saveAssignment(studentId,evaluatorIds,date,time){
   if(!Array.isArray(evaluatorIds)||evaluatorIds.length>3||evaluatorIds.some(id=>typeof id!=='string'||!id.trim())||new Set(evaluatorIds).size!==evaluatorIds.length)throw new Error('Selecciona hasta tres evaluadores diferentes');
+  if(typeof date!=='string'||typeof time!=='string')throw new Error('Introduce una fecha y hora válidas');
+  if(date){
+    const parsed=new Date(date+'T00:00:00Z');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date)throw new Error('Introduce una fecha válida');
+  }
+  if(time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))throw new Error('Introduce una hora válida');
+  if((date||time)&&!evaluatorIds.length)throw new Error('Asigna al menos un evaluador para guardar la fecha u hora');
   const d=dashboard();
   if(!d.period.id||!d.students.some(s=>s.id===studentId))throw new Error('El estudiante o el periodo activo ya no está disponible');
   const assigned=d.assignments.filter(a=>a.student===studentId&&a.state==='Activa');
@@ -678,13 +710,13 @@ function saveAssignment(studentId,evaluatorIds){
   if(evaluatorIds.some(id=>!d.evaluators.some(e=>e.id===id&&(e.state==='Activo'||(assigned.some(a=>a.evaluator===id)&&completed.includes(id))))))throw new Error('Alguno de los evaluadores ya no está disponible');
   const old=sh('Asignaciones');const values=old.getDataRange().getValues();const head=values.shift();
   const stateIndex=head.indexOf('Estado');
-  if(['ID_Asignacion','ID_Periodo','ID_Estudiante','ID_Evaluador','Fecha_Asignacion','Estado'].some(h=>head.filter(v=>v===h).length!==1))throw new Error('La hoja Asignaciones no tiene las columnas necesarias');
+  if(ASSIGNMENT_HEADERS.some(h=>head.filter(v=>v===h).length!==1))throw new Error('Revisa las columnas de Asignaciones y ejecuta migrateAssignmentSchedule()');
   const idIndex=head.indexOf('ID_Asignacion');
   const changes=values.map((row,index)=>({row:row,index:index})).filter(item=>item.row[head.indexOf('ID_Periodo')]===d.period.id&&item.row[head.indexOf('ID_Estudiante')]===studentId&&item.row[stateIndex]==='Activa'&&!evaluatorIds.includes(item.row[head.indexOf('ID_Evaluador')]));
   const added=evaluatorIds.filter(ev=>!assigned.some(a=>a.evaluator===ev));
   const firstNumber=added.length?Number(nextId('AS','Asignaciones','ID_Asignacion').split('-').pop()):0;
   const newRows=added.map((ev,index)=>{
-    const record={ID_Asignacion:'AS-'+String(firstNumber+index).padStart(3,'0'),ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev,Fecha_Asignacion:new Date(),Estado:'Activa'};
+    const record={ID_Asignacion:'AS-'+String(firstNumber+index).padStart(3,'0'),ID_Periodo:d.period.id,ID_Estudiante:studentId,ID_Evaluador:ev,Fecha_Asignacion:new Date(),Estado:'Activa',Fecha_Evaluacion:date,Hora_Evaluacion:time};
     return head.map(h=>record[h]===undefined?'':record[h]);
   });
   const attempted=[];
@@ -694,13 +726,24 @@ function saveAssignment(studentId,evaluatorIds){
       attempted.push({range:range,index:change.index,id:change.row[idIndex],formula:range.getFormula(),value:change.row[stateIndex]});
       range.setValue('Inactiva');
     });
+    values.map((row,index)=>({row,index})).filter(item=>item.row[head.indexOf('ID_Periodo')]===d.period.id&&item.row[head.indexOf('ID_Estudiante')]===studentId&&item.row[stateIndex]==='Activa'&&evaluatorIds.includes(item.row[head.indexOf('ID_Evaluador')])).forEach(item=>{
+      [['Fecha_Evaluacion',date],['Hora_Evaluacion',time]].forEach(([header,value])=>{
+        const column=head.indexOf(header),range=old.getRange(item.index+2,column+1);
+        const formula=range.getFormula();
+        if(!formula&&item.row[column]===value)return;
+        attempted.push({range:range,index:item.index,id:item.row[idIndex],column:column,formula:formula,value:item.row[column],written:value});
+        range.setValue(value);
+      });
+    });
   },()=>{
     attempted.reverse().forEach(change=>{
       const current=old.getRange(change.index+2,1,1,head.length).getValues()[0];
       if(current[idIndex]!==change.id)throw new Error('Una asignación cambió durante la operación');
       const formula=change.range.getFormula();
-      if(current[stateIndex]===change.value&&formula===change.formula)return;
-      if(current[stateIndex]!=='Inactiva'||formula)throw new Error('Una asignación cambió durante la operación');
+      const column=change.column??stateIndex,written=change.column===undefined?'Inactiva':change.written;
+      const unchanged=current[column] instanceof Date&&change.value instanceof Date?current[column].getTime()===change.value.getTime():current[column]===change.value;
+      if(unchanged&&formula===change.formula)return;
+      if(current[column]!==written||formula)throw new Error('Una asignación cambió durante la operación');
       change.range.setValue(change.formula||change.value);
     });
   });

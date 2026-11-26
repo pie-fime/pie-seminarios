@@ -53,8 +53,8 @@ Al enviar una evaluación se guarda una copia de la rúbrica y su resultado. Los
 ### Actualizar una hoja existente
 
 1. **Haz una copia de seguridad de todo el archivo de Google Sheets y suspende las capturas y la edición manual durante la actualización.** No ejecutes `setupSheets()` en una hoja existente: borra sus datos.
-2. Prueba primero en una copia independiente de la hoja y del proyecto Apps Script. Esta actualización no requiere ejecutar migraciones para hojas ya compatibles.
-3. Actualiza `Code.gs`, publica una nueva versión de la aplicación web y actualiza el frontend de forma coordinada antes de reanudar las capturas. El frontend y el backend nuevos deben instalarse juntos para conservar la selección de rúbrica del evaluador.
+2. Prueba primero en una copia independiente de la hoja y del proyecto Apps Script. Para registrar el horario de evaluación, actualiza `Code.gs` y ejecuta una vez `migrateAssignmentSchedule()` desde Apps Script. Añade las columnas `Fecha_Evaluacion` y `Hora_Evaluacion` sin borrar asignaciones; las existentes quedan sin horario.
+3. Publica una nueva versión de la aplicación web y actualiza el frontend de forma coordinada antes de reanudar las capturas. El frontend y el backend nuevos deben instalarse juntos para conservar la selección de rúbrica del evaluador y guardar horarios.
 4. Para activar la rúbrica predeterminada de siete criterios, respalda la hoja y ejecuta `replaceRubricWithDefault()` una vez desde Apps Script. La función reemplaza `RubricaActual` (incluidas las ponderaciones personalizadas) y añade la columna `Penalizacion_Tiempo` si hace falta; no modifica las rúbricas guardadas en evaluaciones ya enviadas.
 5. Comprueba el acceso, las asignaciones, evaluaciones y reportes con datos de prueba. Si hay un error de escritura o restauración, detén las capturas y revisa las hojas y la copia de seguridad antes de reintentar.
 

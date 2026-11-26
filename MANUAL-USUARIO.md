@@ -115,12 +115,15 @@ Al iniciar sesión aparece **Mis estudiantes**, con los asignados en el periodo 
 1. Pulsa **Evaluar** en la fila del estudiante.
 2. En cada criterio, abre **Ver rúbrica** para consultar los niveles y descriptores.
 3. Selecciona explícitamente un puntaje entero de **0 a 100** con cada deslizador, incluso si deseas conservar el valor que aparece inicialmente.
-4. Revisa la calificación individual calculada y escribe, si lo deseas, las **Observaciones generales**.
-5. Pulsa **Guardar y enviar evaluación** y espera el mensaje de confirmación.
+4. En el criterio de presentación, selecciona el escenario de atraso correspondiente.
+5. Revisa la calificación individual calculada y escribe, si lo deseas, las **Observaciones generales**.
+6. Pulsa **Guardar y enviar evaluación** y espera el mensaje de confirmación.
 
 La calificación individual combina los puntajes según las ponderaciones de la rúbrica. La calificación final del estudiante se calcula cuando se han recibido las tres evaluaciones.
 
-En la rúbrica predeterminada, el tiempo de presentación es un criterio que se califica con el deslizador: hasta 10 minutos corresponde al nivel sobresaliente; más de 10 y menos de 11, satisfactorio; de 11 a 15, en desarrollo; y más de 15, insuficiente. No se captura el tiempo ni se aplica una penalización automática en esa rúbrica.
+En la rúbrica predeterminada, el tiempo asignado es de 10 minutos. El escenario seleccionado descuenta del puntaje del criterio de presentación, antes de ponderarlo: atraso de hasta 1 minuto, 0 puntos; más de 1 y hasta 3 minutos, 10 puntos; más de 3 y hasta 5 minutos, 20 puntos; y más de 5 minutos, 40 puntos. El puntaje ajustado no puede ser menor que cero. No es necesario ingresar minutos ni segundos.
+
+En evaluaciones anteriores se conserva el tiempo registrado y se selecciona inicialmente el escenario equivalente a la penalización aplicada. El cálculo anterior también penalizaba desviaciones por terminar antes del tiempo asignado.
 
 ### 4.3. Editar o consultar una evaluación enviada
 
@@ -135,7 +138,7 @@ Al día siguiente aparece **Consultar** y la evaluación queda en modo de lectur
 | No puedo iniciar sesión | Comprueba usuario y contraseña; verifica si estás en demo o en el servidor. Si continúa el problema, contacta al administrador. |
 | No aparecen estudiantes asignados | Pide al administrador que compruebe el periodo activo y las asignaciones. |
 | Un periodo nuevo aparece inactivo | Selecciona su casilla en **Periodos**, pulsa **Activar periodo** y confirma. |
-| No puedo enviar una evaluación | Selecciona un puntaje en todos los criterios y revisa el mensaje de error. Si cambió el periodo, abre nuevamente el formulario. |
+| No puedo enviar una evaluación | Selecciona un puntaje en todos los criterios y el escenario de tiempo; revisa el mensaje de error. Si cambió el periodo, abre nuevamente el formulario. |
 | La calificación final aparece pendiente | Verifica que los tres revisores hayan enviado sus evaluaciones. |
 | No puedo importar un CSV | Revisa la plantilla, los campos requeridos, los duplicados y los errores indicados. Corrige el archivo y vuelve a seleccionarlo. |
 | Los cambios de demo no aparecen en otro dispositivo | Es normal: el demo guarda los datos solo en el navegador donde se capturaron. |

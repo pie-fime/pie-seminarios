@@ -728,10 +728,8 @@ function submitEvaluation(session,body,editing=false){
   const raw={},criteria={},time=body.time||{},observations=body.criterionObservations||duplicate?.criterionObservations||{};
   let penalty=0;
   if(rubric.some(c=>c.hasTimePenalty)){
-    const assigned=Number(time.assigned),minutes=Number(time.minutes),seconds=time.seconds===''||time.seconds==null?0:Number(time.seconds);
-    if(Number(time.assigned)!==10||time.minutes===''||!Number.isInteger(assigned)||!Number.isInteger(minutes)||minutes<0||minutes>120||!Number.isInteger(seconds)||seconds<0||seconds>59)throw new Error('Registra un tiempo real válido para la presentación de 10 minutos');
-    const deviation=Math.abs(minutes*60+seconds-assigned*60);
-    penalty=deviation<=60?0:deviation<=180?10:deviation<=300?20:40;
+    if(!['0','10','20','40'].includes(time.scenario))throw new Error('Selecciona un escenario de tiempo válido');
+    penalty=Number(time.scenario);
   }
   let weighted=0;
   rubric.forEach(c=>{

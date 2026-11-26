@@ -44,6 +44,7 @@
       assert(rubric.map(c=>c.weight).join(',')==='0.15,0.2,0.2,0.1,0.2,0.1,0.05','Las ponderaciones deben coincidir con el PDF');
       assert(rubric[6].hasTimePenalty,'El criterio 7 debe incluir la penalización por tiempo');
       assert(w.Calculations.penalty(10,9,0)===0&&w.Calculations.penalty(10,11,0)===0&&w.Calculations.penalty(10,11,1)===10&&w.Calculations.penalty(10,13,0)===10&&w.Calculations.penalty(10,13,1)===20&&w.Calculations.penalty(10,15,0)===20&&w.Calculations.penalty(10,15,1)===40,'Los rangos de penalización deben coincidir con el PDF');
+      assert(['0','10','20','40'].every(value=>w.Calculations.scenarioPenalty(value)===Number(value)),'Cada escenario debe aplicar su penalización');
       const criteria=Object.fromEntries(rubric.map(c=>[c.id,80]));
       data.evaluations.push({student:'EST-001',evaluator:'EV-001',period:data.period.id,round:2,submittedAt,individual:80,criteria,rawCriteria:criteria,observations:'Antes',rubric,time:{assigned:10,minutes:10,seconds:0}});
       w.Admin.saveDemo(data);
@@ -54,11 +55,12 @@
       doc.querySelector('[data-evaluate="EST-001"]').click();
       const form=doc.getElementById('evaluationForm');
       assert(!form.querySelector('[data-score-slider]').disabled,'Las calificaciones deben poder editarse');
+      assert(form.elements.timeScenario.value==='0','Debe seleccionar el escenario correspondiente al tiempo guardado anteriormente');
       form.elements.observations.value='Después';
       form.requestSubmit();
       await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
       let saved=await w.Admin.load();
-      assert(saved.evaluations.length===1&&saved.evaluations[0].observations==='Después'&&saved.evaluations[0].submittedAt===submittedAt,'La edición debe actualizar la misma evaluación sin cambiar su fecha');
+      assert(saved.evaluations.length===1&&saved.evaluations[0].observations==='Después'&&saved.evaluations[0].submittedAt===submittedAt&&saved.evaluations[0].time.scenario==='0'&&saved.evaluations[0].time.minutes===10,'La edición debe conservar la fecha, penalización y duración anterior');
       saved.evaluations[0].submittedAt='2020-01-01T12:00:00Z';w.Admin.saveDemo(saved);
       doc.querySelector('[data-evaluate="EST-001"]').click();
       const staleForm=doc.getElementById('evaluationForm');
@@ -74,19 +76,43 @@
       doc.getElementById('modalClose').click();
       doc.querySelector('[data-evaluate="EST-002"]').click();
       const newForm=doc.getElementById('evaluationForm');
-      assert(newForm.elements.timeMinutes.required,'La duración real debe ser obligatoria para calcular la penalización');
+      assert(newForm.querySelectorAll('[name="timeScenario"]').length===4&&newForm.elements.timeScenario.value===''&&!newForm.querySelector('[name="timeMinutes"]'),'Debe solicitar un escenario sin capturar duración');
       newForm.querySelectorAll('[data-score-slider]').forEach(slider=>{
         slider.value='80';
         slider.dispatchEvent(new w.Event('input',{bubbles:true}));
       });
-      newForm.elements.timeMinutes.value='12';
-      newForm.elements.timeSeconds.value='0';
+      assert(!newForm.checkValidity()&&doc.getElementById('liveScore').textContent==='--','El escenario debe ser obligatorio antes de calcular o enviar');
+      for(const [scenario,score] of [['0','80.00 pts'],['10','79.50 pts'],['20','79.00 pts'],['40','78.00 pts']]){
+        const option=newForm.querySelector(`[name="timeScenario"][value="${scenario}"]`);
+        option.click();
+        assert(newForm.elements.timeScenario.value===scenario&&doc.getElementById('liveScore').textContent===score,'El escenario debe actualizar la calificación en vivo');
+      }
+      newForm.querySelectorAll('[data-score-slider]').forEach(slider=>{
+        slider.value='100';
+        slider.dispatchEvent(new w.Event('input',{bubbles:true}));
+      });
+      assert(doc.getElementById('liveScore').textContent==='98.00 pts','Con todos los criterios en 100 y penalización de 40, el criterio de presentación debe aportar 3 de 5 puntos');
+      newForm.querySelectorAll('[data-score-slider]').forEach(slider=>{
+        slider.value='15';
+        slider.dispatchEvent(new w.Event('input',{bubbles:true}));
+      });
+      assert(doc.getElementById('liveScore').textContent==='14.25 pts','El criterio penalizado no debe ser negativo y los demás criterios deben conservar sus puntos');
+      newForm.querySelectorAll('[data-score-slider]').forEach(slider=>{
+        slider.value='80';
+        slider.dispatchEvent(new w.Event('input',{bubbles:true}));
+      });
+      newForm.querySelector('[name="timeScenario"][value="10"]').click();
       newForm.requestSubmit();
       await waitFor(()=>doc.getElementById('modal').classList.contains('hidden'));
       saved=await w.Admin.load();
       const newEvaluation=saved.evaluations.find(e=>e.student==='EST-002');
       assert(saved.evaluations.length===2&&w.Evaluator.canEdit(newEvaluation),'Una evaluación nueva debe guardarse con fecha y quedar editable');
-      assert(Number(newEvaluation.rawCriteria.C7)===80&&newEvaluation.criteria.C7===70&&newEvaluation.individual===79.5,'La penalización debe aplicarse solo al puntaje del criterio 7 antes de ponderar');
+      assert(Number(newEvaluation.rawCriteria.C7)===80&&newEvaluation.criteria.C7===70&&newEvaluation.individual===79.5&&newEvaluation.time.scenario==='10','La penalización debe aplicarse solo al puntaje del criterio 7 antes de ponderar');
+      const readOnly=new DOMParser().parseFromString(w.Evaluator.rubricForm(saved.students[1],rubric,newEvaluation,false),'text/html');
+      assert(readOnly.querySelector('[name="timeScenario"]:checked').value==='10'&&[...readOnly.querySelectorAll('[name="timeScenario"]')].every(input=>input.disabled),'La consulta debe mostrar el escenario sin permitir modificarlo');
+      const legacyEarly={...newEvaluation,time:{assigned:10,minutes:6,seconds:0}};
+      const legacyForm=new DOMParser().parseFromString(w.Evaluator.rubricForm(saved.students[1],rubric,legacyEarly,true),'text/html');
+      assert(legacyForm.querySelector('[name="timeScenario"]:checked').value==='20'&&legacyForm.querySelector('.time-fields').textContent.includes('6 min 0 s'),'Debe conservar la duración y penalización histórica por desviación temprana');
       const otherRubric=[{id:'OTRO',name:'Rúbrica anterior',weight:1,levels:[]}];
       saved.evaluations.push({student:'EST-003',evaluator:'EV-002',period:saved.period.id,round:2,rubric:otherRubric,observations:'Privado'});
       w.Admin.saveDemo(saved);
@@ -110,16 +136,22 @@
       assert(rows.length===2&&rows[1][4]===90&&rows[1][5]==='Actualizada'&&rows[1][6]===timestamp&&rows[1][13]==='{"C1":"conservar"}'&&rows[1][14]==='=1+1','El servidor debe conservar fecha, observaciones y fórmulas no editadas');
       submitEvaluation({username:'evaluador'},{...body,observations:'=1+1'},true);
       assert(rows[1][5]==="'=1+1",'Las observaciones no deben convertirse en fórmulas');
-      const timeRubric=[{id:'C7',name:'Presentación',weight:1,hasTimePenalty:true}];
+      const timeRubric=[{id:'C1',name:'Otro criterio',weight:0.95,hasTimePenalty:false},{id:'C7',name:'Presentación',weight:0.05,hasTimePenalty:true}];
       rows[1][9]=JSON.stringify(timeRubric);
-      rows[1][10]='{"C7":80}';
-      rows[1][11]='{"C7":80}';
-      const timedBody={studentId:'S1',rubric:timeRubric,rawCriteria:{C7:80},time:{assigned:'10',minutes:'12',seconds:'0'}};
-      submitEvaluation({username:'evaluador'},timedBody,true);
-      assert(rows[1][4]===70&&rows[1][10]==='{"C7":70}','El servidor debe descontar la penalización del criterio de comunicación');
-      let missingTimeRejected=false;
-      try{submitEvaluation({username:'evaluador'},{...timedBody,time:{assigned:'10',minutes:'',seconds:''}},true);}catch(error){missingTimeRejected=error.message.includes('tiempo real válido');}
-      assert(missingTimeRejected,'El servidor debe exigir el tiempo real para aplicar la penalización');
+      rows[1][10]='{"C1":100,"C7":100}';
+      rows[1][11]='{"C1":100,"C7":100}';
+      const timedBody={studentId:'S1',rubric:timeRubric,rawCriteria:{C1:100,C7:100},time:{scenario:'10'}};
+      for(const [scenario,score,criterion] of [['0',100,100],['10',99.5,90],['20',99,80],['40',98,60]]){
+        submitEvaluation({username:'evaluador'},{...timedBody,time:{scenario}},true);
+        assert(rows[1][4]===score&&JSON.parse(rows[1][10]).C1===100&&JSON.parse(rows[1][10]).C7===criterion&&JSON.parse(rows[1][12]).scenario===scenario,'El servidor debe descontar cada escenario del criterio de presentación antes de ponderar');
+      }
+      submitEvaluation({username:'evaluador'},{...timedBody,rawCriteria:{C1:15,C7:15},time:{scenario:'40'}},true);
+      assert(rows[1][4]===14.25&&JSON.parse(rows[1][10]).C7===0,'La penalización no debe producir un puntaje negativo');
+      for(const scenario of [undefined,'','15',40]){
+        let rejected=false;
+        try{submitEvaluation({username:'evaluador'},{...timedBody,time:{scenario}},true);}catch(error){rejected=error.message.includes('escenario de tiempo válido');}
+        assert(rejected,'El servidor debe rechazar escenarios faltantes o inválidos');
+      }
       const rejects=(session,editing,message)=>{
         let failed=false;try{submitEvaluation(session,body,editing);}catch(error){failed=error.message.includes(message);}
         assert(failed,'Se esperaba el error: '+message);

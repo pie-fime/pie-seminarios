@@ -118,9 +118,11 @@ th { color:var(--gray-600);font-size:.75rem;text-transform:uppercase;letter-spac
 .criterion input[type="range"] { padding:0;accent-color:var(--green-700); }
 .criterion summary { color:var(--green-700);font-weight:700;cursor:pointer; }
 .criterion textarea { margin-bottom:10px; }
-.time-fields { display:flex;flex-wrap:wrap;gap:10px;margin-top:12px; }
-.time-fields p { width:100%;margin:0; }
-.time-fields label { flex:1 1 130px; }
+.time-fields { display:grid;gap:10px;margin:12px 0 0;padding:12px;border:1px solid var(--gray-300);border-radius:9px; }
+.time-fields legend { font-weight:700; }
+.time-fields p { margin:0; }
+.time-option { display:flex;align-items:center;gap:10px; }
+.time-option input { flex:0 0 auto;accent-color:var(--green-700); }
 .levels { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px; }
 .level-option input { position:absolute;opacity:0; }
 .level-option span { display:block;border:1px solid var(--gray-300);border-radius:9px;padding:9px;height:100%;cursor:pointer;font-size:.75rem; }

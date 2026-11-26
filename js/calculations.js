@@ -18,11 +18,15 @@ window.Calculations = (() => {
     const deviation=Math.abs(m*60+s-a*60);
     return deviation<=60?0:deviation<=180?10:deviation<=300?20:40;
   }
+  function scenarioPenalty(scenario) {
+    if (!['0','10','20','40'].includes(scenario)) throw new Error('Selecciona un escenario de tiempo válido');
+    return Number(scenario);
+  }
   function finalAverage(individualScores) {
     if (!Array.isArray(individualScores) || individualScores.length !== 3) return null;
     const numbers = individualScores.map(Number);
     if (numbers.some(n => !Number.isFinite(n))) return null;
     return Math.round((numbers.reduce((a, b) => a + b, 0) / 3) * 100) / 100;
   }
-  return { individual, penalty, finalAverage };
+  return { individual, penalty, scenarioPenalty, finalAverage };
 })();

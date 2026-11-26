@@ -721,10 +721,10 @@ window.App = (() => {
     const read=()=>{
       const fd=new FormData(form),rawCriteria={};
       rubric.forEach(c=>{const slider=form.elements.namedItem(c.id);rawCriteria[c.id]=slider.validity.valid?fd.get(c.id):'';});
-      const time={assigned:fd.get('timeAssigned'),minutes:fd.get('timeMinutes'),seconds:fd.get('timeSeconds')};
+      const time={...existing?.time,scenario:fd.get('timeScenario')};
       const criteria={...rawCriteria};
       const penalized=rubric.find(c=>c.hasTimePenalty);
-      if(penalized&&rawCriteria[penalized.id]!=='')criteria[penalized.id]=Math.max(0,Number(rawCriteria[penalized.id])-Calculations.penalty(time.assigned,time.minutes,time.seconds));
+      if(penalized&&rawCriteria[penalized.id]!==''&&time.scenario!==null)criteria[penalized.id]=Math.max(0,Number(rawCriteria[penalized.id])-Calculations.scenarioPenalty(time.scenario));
       return {rawCriteria,criteria,time,observations:fd.get('observations')};
     };
     const update=()=>{
@@ -735,10 +735,9 @@ window.App = (() => {
         form.querySelectorAll('.criterion').forEach((section,index)=>{
           const c=rubric[index],raw=values.rawCriteria[c.id],number=Number(raw);
           const valid=raw!==''&&Number.isInteger(number)&&number>=0&&number<=100;
-          section.querySelector('[data-criterion-result]').textContent=valid?`${c.hasTimePenalty?`Puntaje ajustado: ${values.criteria[c.id]} · `:''}Puntos obtenidos: ${(Number(values.criteria[c.id])*c.weight).toFixed(2)} / ${c.weight*100}`:`Puntos obtenidos: — / ${c.weight*100}`;
+          section.querySelector('[data-criterion-result]').textContent=valid&&(!c.hasTimePenalty||values.time.scenario!==null)?`${c.hasTimePenalty?`Puntaje ajustado: ${values.criteria[c.id]} · `:''}Puntos obtenidos: ${(Number(values.criteria[c.id])*c.weight).toFixed(2)} / ${c.weight*100}`:`Puntos obtenidos: — / ${c.weight*100}`;
           if(c.hasTimePenalty){
-            const penalty=Calculations.penalty(values.time.assigned,values.time.minutes,values.time.seconds);
-            section.querySelector('[data-penalty-result]').textContent=values.time.minutes===''?'Sin tiempo real registrado.':`Penalización por tiempo: ${penalty} puntos`;
+            section.querySelector('[data-penalty-result]').textContent=values.time.scenario===null?'Sin escenario seleccionado.':`Penalización por tiempo: ${Calculations.scenarioPenalty(values.time.scenario)} puntos`;
           }
         });
         errorBox.classList.add('hidden');

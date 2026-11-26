@@ -36,17 +36,24 @@ window.Evaluator = (() => {
   }
   function rubricForm(student, selectedRubric, existing=null, editable=false) {
     const readOnly=existing&&!editable;
+    const time=existing?.time;
+    const scenario=time?.scenario??(time?.minutes!==''&&time?.minutes!=null&&time?.assigned!=null?String(Calculations.penalty(time.assigned,time.minutes,time.seconds??'')):null);
+    const scenarios=[
+      ['0','Escenario 1: Tiempo adecuado (atraso menor o igual a 1 minuto)','0 puntos'],
+      ['10','Escenario 2: Más de 1 y hasta 3 minutos de atraso','−10 puntos'],
+      ['20','Escenario 3: Más de 3 y hasta 5 minutos de atraso','−20 puntos'],
+      ['40','Escenario 4: Más de 5 minutos de atraso','−40 puntos']
+    ];
     const criteria=selectedRubric.map(c=>`<section class="criterion"><div class="criterion-head"><div><strong>${escapeHtml(c.name)}</strong><div class="muted">Ponderación ${c.weight*100}%</div></div></div>
       <p class="muted">${escapeHtml(c.scope||'')}</p>
       <label><span>Puntaje (0–100): <output data-score-value>${existing?escapeHtml(existing.rawCriteria?.[c.id]??existing.criteria?.[c.id]??'—'):'Sin seleccionar'}</output></span>
         <input type="range" name="${escapeHtml(c.id)}" min="0" max="100" step="1" value="${escapeHtml(existing?.rawCriteria?.[c.id]??existing?.criteria?.[c.id]??50)}" data-score-slider aria-label="Puntaje de ${escapeHtml(c.name)}" ${readOnly?'disabled':existing?'':'aria-valuetext="Sin seleccionar"'}></label>
       <p class="criterion-result" data-criterion-result>${existing?`${c.hasTimePenalty?`Puntaje ajustado: ${escapeHtml(existing.criteria[c.id])} · `:''}Puntos obtenidos: ${(Number(existing.criteria[c.id])*c.weight).toFixed(2)} / ${c.weight*100}`:`Puntos obtenidos: — / ${c.weight*100}`}</p>
       <details><summary>Ver rúbrica</summary><div class="table-wrap"><table><thead><tr><th>Nivel</th><th>Descriptor</th></tr></thead><tbody>${c.levels.map(l=>`<tr><td>${escapeHtml(l.lbl)} (${escapeHtml(l.rng)})</td><td>${escapeHtml(l.desc)}</td></tr>`).join('')}</tbody></table></div></details>
-      ${c.hasTimePenalty?`<div class="time-fields"><p>El tiempo asignado para la presentación es de 10 minutos. Penalización por desviación: hasta 1 min: 0; más de 1 a 3 min: −10; más de 3 a 5 min: −20; más de 5 min: −40 puntos en este criterio.</p>
-        <label>Tiempo asignado (min)<input type="number" name="timeAssigned" min="10" max="10" step="1" value="${escapeHtml(existing?.time?.assigned??10)}" readonly></label>
-        <label>Tiempo real (min)<input type="number" name="timeMinutes" min="0" max="120" step="1" value="${escapeHtml(existing?.time?.minutes??'')}" required ${readOnly?'readonly':''}></label>
-        <label>Tiempo real (seg)<input type="number" name="timeSeconds" min="0" max="59" step="1" value="${escapeHtml(existing?.time?.seconds??'')}" ${readOnly?'readonly':''}></label>
-        <p data-penalty-result>${existing&&existing.time?.minutes!==''&&existing.time?.minutes!=null?`Penalización aplicada: ${Number(existing.rawCriteria[c.id])-Number(existing.criteria[c.id])} puntos`:'Sin tiempo real registrado.'}</p></div>`:''}</section>`).join('');
+      ${c.hasTimePenalty?`<fieldset class="time-fields"><legend>Penalización por tiempo</legend><p>Tiempo asignado: 10 minutos. Selecciona un escenario de atraso:</p>
+        ${time?.minutes!==''&&time?.minutes!=null?`<p class="muted">Tiempo registrado anteriormente: ${escapeHtml(time.minutes)} min ${escapeHtml(time.seconds||0)} s. La penalización anterior consideraba también las presentaciones que terminaban antes.</p>`:''}
+        ${scenarios.map(([value,label,points])=>`<label class="time-option"><input type="radio" name="timeScenario" value="${value}" required ${scenario===value?'checked':''} ${readOnly?'disabled':''}><span>${label} (${points})</span></label>`).join('')}
+        <p data-penalty-result>${scenario!==null?`Penalización por tiempo: ${escapeHtml(scenario)} puntos`:'Sin escenario seleccionado.'}</p></fieldset>`:''}</section>`).join('');
     return `<form id="evaluationForm">
       <div class="panel"><strong>${escapeHtml(student.name)}</strong><div class="muted">${escapeHtml(student.matricula)} · ${escapeHtml(student.semester)} · ${escapeHtml(student.director)}</div><div>${escapeHtml(student.thesis)}</div></div>
       <div class="rubric">${criteria}</div>

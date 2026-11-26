@@ -429,7 +429,7 @@ window.App = (() => {
       const activeAssignments=currentAssignments.filter(a=>a.student===student.id&&a.state==='Activa');
       const ids=activeAssignments.map(a=>a.evaluator);
       const evaluated=currentData.evaluations.filter(e=>e.student===student.id&&(e.round||1)===2).map(e=>e.evaluator);
-      openModal(`Asignar evaluadores · ${student.name}`,`<form id="assignmentForm"><div id="assignmentOptions"></div><p class="muted">Selecciona hasta tres evaluadores. Los que ya enviaron su evaluación no pueden retirarse.</p><div class="form-grid"><label>Fecha de evaluación (opcional)<input type="date" name="date"></label><label>Hora de evaluación (opcional)<input type="time" name="time"></label></div><p class="muted">El horario es compartido por los evaluadores y corresponde a la hora local de Monterrey.</p><button class="button primary" type="submit">Guardar asignación</button></form>`);
+      openModal(`Asignar evaluadores · ${student.name}`,`<form id="assignmentForm"><div id="assignmentOptions"></div><p class="muted">Selecciona hasta tres evaluadores. Los que ya enviaron su evaluación no pueden retirarse.</p><div class="form-grid"><label>Fecha de evaluación (opcional)<input type="date" name="date"></label><label>Hora de evaluación (opcional)<input type="time" name="time"></label></div><p class="muted">El horario es compartido por los evaluadores y corresponde a la hora local.</p><button class="button primary" type="submit">Guardar asignación</button></form>`);
       const form=document.getElementById('assignmentForm'),options=document.getElementById('assignmentOptions');
       form.elements.date.value=activeAssignments[0]?.date||'';
       form.elements.time.value=activeAssignments[0]?.time||'';
